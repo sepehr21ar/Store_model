@@ -82,30 +82,40 @@ class StorageManager:
             raise
 
     def add_new_product(self, name: str, price: float) -> int:
-        """Adds a new product to Products table and returns its ProductID."""
+        "Add a new product to the Products table and return its ID."
         query = '''
             INSERT INTO Products (ProductName, Price)
-            VALUES (?, ?);
-            SELECT SCOPE_IDENTITY();
+            OUTPUT INSERTED.ProductID
+            VALUES (?, ?)
         '''
         try:
             self.db.cursor.execute(query, (name, price))
-            self.db.cursor.execute("SELECT SCOPE_IDENTITY()")
             product_id = self.db.cursor.fetchone()[0]
             self.db.commit()
-            print(f"Added new product: {name} with ProductID {product_id}.")
+            print(f"Added new product: {name} with ID {product_id}.")
             return int(product_id)
         except pyodbc.Error as e:
             print(f"Error adding new product: {e}")
             raise
 
+from datetime import datetime
+
 class StoreManager:
-    """Manages in-store sales."""
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
+    def check_product_exists(self, product_id: int) -> bool:
+        "Checks whether the ProductID exists in the Products table."
+        query = "SELECT 1 FROM Products WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        return self.db.cursor.fetchone() is not None
+
     def record_sale(self, product_id: int, quantity: int) -> None:
-        """Records a sale in StoreSales."""
+        """Record a sale in the table StoreSales."""
+        if not self.check_product_exists(product_id):
+            raise ValueError(f"The product with ID {product_id} does not exist in the products table.")
+        if quantity <= 0:
+            raise ValueError("quentity must be greater than 0.")
         query = '''
             INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
@@ -113,18 +123,24 @@ class StoreManager:
         try:
             self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
             self.db.commit()
-            print(f"Recorded store sale: {quantity} units of ProductID {product_id}.")
+            print(f"Record in Store {quantity} nubmer of product with ID : {product_id}.")
         except pyodbc.Error as e:
-            print(f"Error recording store sale: {e}")
+            if 'Insufficient stock' in str(e):
+                print(f"Error: Insufficient stock for product with ID {product_id} does not exist")
+            else:
+                print(f"Error in recording sales in the store: {e}")
             raise
-
+        
 class OnlineShopManager:
     """Manages online shop sales."""
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
     def record_sale(self, product_id: int, quantity: int) -> None:
-        """Records a sale in OnlineSales."""
+        if not self.check_product_exists(product_id):
+            raise ValueError(f"The product with ID {product_id} does not exist in the products table.")
+        if quantity <= 0:
+            raise ValueError("quentity must be greater than 0.")
         query = '''
             INSERT INTO OnlineSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
@@ -132,10 +148,19 @@ class OnlineShopManager:
         try:
             self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
             self.db.commit()
-            print(f"Recorded online sale: {quantity} units of ProductID {product_id}.")
+            print(f"Record in Store {quantity} nubmer of product with ID : {product_id}.")
         except pyodbc.Error as e:
-            print(f"Error recording online sale: {e}")
+            if 'Insufficient stock' in str(e):
+                print(f"There is not enough stock for product with ID {product_id}. Please check stock.")
+            else:
+                print(f"An error occurred: Please contact your system administrator (details: {e}).")
             raise
+
+    def check_product_exists(self, product_id: int) -> bool:
+        query = "SELECT 1 FROM Products WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        return self.db.cursor.fetchone() is not None
+
 
 class ReportManager:
     """Manages reporting operations."""
@@ -145,26 +170,26 @@ class ReportManager:
     def get_sales_report(self) -> List[Tuple]:
         """Generates a report combining Products, Storage, StoreSales, and OnlineSales."""
         query = '''
-            SELECT 
-                p.ProductID,
-                p.ProductName,
-                p.Price,
-                COALESCE(s.Quantity, 0) AS StorageQuantity,
-                COALESCE(SUM(ss.Quantity), 0) AS StoreSalesQuantity,
-                COALESCE(SUM(os.Quantity), 0) AS OnlineSalesQuantity,
-                COALESCE(SUM(ss.Quantity) + SUM(os.Quantity), 0) AS TotalSalesQuantity
-            FROM 
-                Products p
-            LEFT JOIN 
-                Storage s ON p.ProductID = s.ProductID
-            LEFT JOIN 
-                StoreSales ss ON p.ProductID = ss.ProductID
-            LEFT JOIN 
-                OnlineSales os ON p.ProductID = os.ProductID
-            GROUP BY 
-                p.ProductID, p.ProductName, p.Price, s.Quantity
-            ORDER BY 
-                p.ProductID
+               SELECT 
+    p.ProductID,
+    p.ProductName,
+    p.Price,
+    COALESCE(s.Quantity, 0) AS StorageQuantity,
+    COALESCE(SUM(ss.Quantity), 0) AS StoreSalesQuantity,
+    COALESCE(SUM(os.Quantity), 0) AS OnlineSalesQuantity,
+    COALESCE(SUM(COALESCE(ss.Quantity, 0)) + SUM(COALESCE(os.Quantity, 0)), 0) AS TotalSalesQuantity
+FROM 
+    Products p
+LEFT JOIN 
+    Storage s ON p.ProductID = s.ProductID
+LEFT JOIN 
+    StoreSales ss ON p.ProductID = ss.ProductID
+LEFT JOIN 
+    OnlineSales os ON p.ProductID = os.ProductID
+GROUP BY 
+    p.ProductID, p.ProductName, p.Price, COALESCE(s.Quantity, 0)
+ORDER BY 
+    p.ProductID;
         '''
         try:
             self.db.cursor.execute(query)
@@ -246,7 +271,14 @@ class StoreApp:
 
                 elif choice == '2':
                     product_id = int(input("Enter ProductID: "))
+                    # بررسی وجود ProductID
+                    if not self.store.check_product_exists(product_id):
+                        print(f"خطا: محصول با شناسه {product_id} در جدول محصولات وجود ندارد.")
+                        continue  # بازگشت به منوی اصلی بدون انجام اقدام دیگر
                     quantity = int(input("Enter quantity to add: "))
+                    if quantity <= 0:
+                        print("خطا: تعداد باید مثبت باشد.")
+                        continue
                     self.add_product_to_inventory(product_id, quantity)
 
                 elif choice == '3':
