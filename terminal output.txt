@@ -1,0 +1,100 @@
+Enter your choice (1-7): 6
+
+Sales Report:
+ProductID: 1, Name: Laptop Pro, Price: 1200.00, Storage: 18, Store Sales: 7, Online Sales: 0, Total 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                    Sales: 7
+ProductID: 2, Name: Smartphone X, Price: 600.00, Storage: 22, Store Sales: 5, Online Sales: 3, Total Sales: 8
+ProductID: 3, Name: Headphones, Price: 150.00, Storage: 8, Store Sales: 10, Online Sales: 32, Total Sales: 42
+ProductID: 4, Name: Smartwatch, Price: 250.00, Storage: 14, Store Sales: 0, Online Sales: 1, Total Sales: 1
+
+Store Management System
+1. Add new product
+2. Add product to inventory
+3. Record store sale
+4. Record online sale
+5. Display inventory
+6. Display sales report
+7. Exit
+Enter your choice (1-7): 5
+
+Current Inventory:
+ProductID: 1, Name: Laptop Pro, Price: 1200.00, Quantity: 18
+ProductID: 2, Name: Smartphone X, Price: 600.00, Quantity: 22
+ProductID: 3, Name: Headphones, Price: 150.00, Quantity: 8
+ProductID: 4, Name: Smartwatch, Price: 250.00, Quantity: 14
+
+Store Management System
+1. Add new product
+2. Add product to inventory
+3. Record store sale
+4. Record online sale
+5. Display inventory
+6. Display sales report
+7. Exit
+Enter your choice (1-7): 1
+Enter product name: mousePad
+Enter product price: 76.00
+Added new product: mousePad with ID 5.
+Product added with ProductID: 5
+
+Store Management System
+1. Add new product
+2. Add product to inventory
+3. Record store sale
+4. Record online sale
+5. Display inventory
+6. Display sales report
+7. Exit
+Enter your choice (1-7): 6
+
+Sales Report:
+ProductID: 1, Name: Laptop Pro, Price: 1200.00, Storage: 18, Store Sales: 7, Online Sales: 0, Total Sales: 7
+ProductID: 2, Name: Smartphone X, Price: 600.00, Storage: 22, Store Sales: 5, Online Sales: 3, Total Sales: 8
+ProductID: 3, Name: Headphones, Price: 150.00, Storage: 8, Store Sales: 10, Online Sales: 32, Total Sales: 42
+ProductID: 4, Name: Smartwatch, Price: 250.00, Storage: 14, Store Sales: 0, Online Sales: 1, Total Sales: 1
+ProductID: 5, Name: mousePad, Price: 76.00, Storage: 0, Store Sales: 0, Online Sales: 0, Total Sales: 0
+
+Store Management System
+1. Add new product
+2. Add product to inventory
+3. Record store sale
+4. Record online sale
+5. Display inventory
+6. Display sales report
+7. Exit
+Enter your choice (1-7): 2
+Enter ProductID: 5
+Enter quantity to add: 7
+Added 7 units of ProductID 5 to Storage.
+
+Store Management System
+1. Add new product
+2. Add product to inventory
+3. Record store sale
+4. Record online sale
+5. Display inventory
+6. Display sales report
+7. Exit
+Enter your choice (1-7): 7 
+Exiting...
+Database connection closed.
