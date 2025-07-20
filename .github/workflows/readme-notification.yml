@@ -1,15 +1,18 @@
-name: Simple README Update Notification
-
+name: File Update Notification
 on:
   push:
     branches: [ main ]
-
 jobs:
   notify:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Print message
-        run: echo "README به‌روزرسانی شد!"
+      - name: Print commit info and changed files
+        run: |
+          echo "فایل‌ها به‌روزرسانی شدند!"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Commit Message: ${{ github.event.head_commit.message }}"
+          echo "Committed by: ${{ github.actor }}"
+          echo "Changed files:"
+          git diff --name-only HEAD^ HEAD
