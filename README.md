@@ -11,7 +11,7 @@
 
 It includes SQL **triggers** to automatically update inventory after sales, making it a reliable and efficient tool for small to medium-sized retail businesses.
 
----
+
 
 ## ✨ Features
 
@@ -23,7 +23,6 @@ It includes SQL **triggers** to automatically update inventory after sales, maki
 - **Error Handling**: Validates product IDs, quantities, and stock availability  
 - **SQL Server Integration**: Uses `pyodbc` for seamless database connectivity
 
----
 
 ## 🛠️ Prerequisites
 
@@ -178,7 +177,8 @@ BEGIN
     DEALLOCATE sale_cursor;
 END;
 GO
-************************************************************************
+
+
 </details>
 3. Insert Sample Data
 
