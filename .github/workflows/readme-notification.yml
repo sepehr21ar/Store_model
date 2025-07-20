@@ -15,4 +15,8 @@ jobs:
           echo "Commit Message: ${{ github.event.head_commit.message }}"
           echo "Committed by: ${{ github.actor }}"
           echo "Changed files:"
-          git diff --name-only HEAD^ HEAD
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            git diff --stat HEAD^ HEAD
+          else
+            git ls-tree --name-only -r HEAD
+          fi
