@@ -1,0 +1,15 @@
+name: Simple README Update Notification
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Print message
+        run: echo "README به‌روزرسانی شد!"
