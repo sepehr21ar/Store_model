@@ -234,3 +234,4 @@ I will check posible errors...
 Fork the repository
 
 This project is open-source. Use it freely for learning or commercial use. Contributions are encouraged!
+wait for other projects
