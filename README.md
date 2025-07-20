@@ -47,7 +47,7 @@ SQL Server Management Studio (SSMS) (optional)
 Use SQL Server Management Studio or any SQL client and execute the following SQL script:
 
 <details> <summary>📂 Click to expand SQL setup</summary>
-
+******************************************************************
 IF EXISTS (SELECT name FROM sys.databases WHERE name = N'StoreDB')
 BEGIN
     ALTER DATABASE StoreDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
@@ -176,7 +176,7 @@ BEGIN
     DEALLOCATE sale_cursor;
 END;
 GO
-
+************************************************************************
 </details>
 3. Insert Sample Data
 
