@@ -229,6 +229,7 @@ Prevents sales if insufficient stock
 
 User-friendly error messages on failure
 
+I will check posible errors...
 🤝 Contributing
 Fork the repository
 
