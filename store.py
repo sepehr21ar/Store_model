@@ -84,9 +84,9 @@ class StorageManager:
     def add_new_product(self, name: str, price: float) -> int:
         "Add a new product to the Products table and return its ID."
         query = '''
-            INSERT INTO Products (ProductName, Price)
+            INSERT INTO Products (ProductName, Price, Availability)
             OUTPUT INSERTED.ProductID
-            VALUES (?, ?)
+            VALUES (?, ?, 1)
         '''
         try:
             self.db.cursor.execute(query, (name, price))
@@ -98,11 +98,26 @@ class StorageManager:
             print(f"Error adding new product: {e}")
             raise
 
-from datetime import datetime
+    def is_product_active(self, product_id: int) -> bool:
+        query = "SELECT Availability FROM Products WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        row = self.db.cursor.fetchone()
+        return row and row.Availability == 1
+
+    def delete_product(self, product_id: int) -> None:
+        query = "UPDATE Products SET Availability = 0 WHERE ProductID = ?"
+        try:
+            self.db.cursor.execute(query, (product_id,))
+            self.db.commit()
+            print(f"❌ ProductID {product_id} marked as inactive.")
+        except pyodbc.Error as e:
+            print(f"Error deactivating product: {e}")
+            raise
 
 class StoreManager:
     def __init__(self, db: DatabaseConnection):
         self.db = db
+        self.storage = StorageManager(db)
 
     def check_product_exists(self, product_id: int) -> bool:
         "Checks whether the ProductID exists in the Products table."
@@ -110,12 +125,14 @@ class StoreManager:
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
 
-    def record_sale(self, product_id: int, quantity: int) -> None:
-        """Record a sale in the table StoreSales."""
-        if not self.check_product_exists(product_id):
-            raise ValueError(f"The product with ID {product_id} does not exist in the products table.")
+    def record_sale(self, product_id: int, quantity: int):
+        if not self.storage.is_product_active(product_id):
+            print(f"❌ Product {product_id} is inactive and cannot be sold.")
+            return
         if quantity <= 0:
-            raise ValueError("quentity must be greater than 0.")
+            print("❌ Quantity must be greater than 0.")
+            return
+
         query = '''
             INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
@@ -123,24 +140,25 @@ class StoreManager:
         try:
             self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
             self.db.commit()
-            print(f"Record in Store {quantity} nubmer of product with ID : {product_id}.")
+            print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except pyodbc.Error as e:
-            if 'Insufficient stock' in str(e):
-                print(f"Error: Insufficient stock for product with ID {product_id} does not exist")
-            else:
-                print(f"Error in recording sales in the store: {e}")
+            print(f"❌ Error recording store sale: {e}")
             raise
-        
+
 class OnlineShopManager:
     """Manages online shop sales."""
     def __init__(self, db: DatabaseConnection):
         self.db = db
+        self.storage = StorageManager(db)
 
     def record_sale(self, product_id: int, quantity: int) -> None:
         if not self.check_product_exists(product_id):
             raise ValueError(f"The product with ID {product_id} does not exist in the products table.")
+        if not self.storage.is_product_active(product_id):
+            raise ValueError(f"The product with ID {product_id} is inactive and cannot be sold.")
         if quantity <= 0:
-            raise ValueError("quentity must be greater than 0.")
+            raise ValueError("Quantity must be greater than 0.")
+
         query = '''
             INSERT INTO OnlineSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
@@ -148,19 +166,15 @@ class OnlineShopManager:
         try:
             self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
             self.db.commit()
-            print(f"Record in Store {quantity} nubmer of product with ID : {product_id}.")
+            print(f"✅ Online sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except pyodbc.Error as e:
-            if 'Insufficient stock' in str(e):
-                print(f"There is not enough stock for product with ID {product_id}. Please check stock.")
-            else:
-                print(f"An error occurred: Please contact your system administrator (details: {e}).")
+            print(f"❌ Error recording online sale: {e}")
             raise
 
     def check_product_exists(self, product_id: int) -> bool:
         query = "SELECT 1 FROM Products WHERE ProductID = ?"
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
-
 
 class ReportManager:
     """Manages reporting operations."""
@@ -170,26 +184,27 @@ class ReportManager:
     def get_sales_report(self) -> List[Tuple]:
         """Generates a report combining Products, Storage, StoreSales, and OnlineSales."""
         query = '''
-               SELECT 
-    p.ProductID,
-    p.ProductName,
-    p.Price,
-    COALESCE(s.Quantity, 0) AS StorageQuantity,
-    COALESCE(SUM(ss.Quantity), 0) AS StoreSalesQuantity,
-    COALESCE(SUM(os.Quantity), 0) AS OnlineSalesQuantity,
-    COALESCE(SUM(COALESCE(ss.Quantity, 0)) + SUM(COALESCE(os.Quantity, 0)), 0) AS TotalSalesQuantity
-FROM 
-    Products p
-LEFT JOIN 
-    Storage s ON p.ProductID = s.ProductID
-LEFT JOIN 
-    StoreSales ss ON p.ProductID = ss.ProductID
-LEFT JOIN 
-    OnlineSales os ON p.ProductID = os.ProductID
-GROUP BY 
-    p.ProductID, p.ProductName, p.Price, COALESCE(s.Quantity, 0)
-ORDER BY 
-    p.ProductID;
+            SELECT 
+                p.ProductID,
+                p.ProductName,
+                p.Price,
+                COALESCE(s.Quantity, 0) AS StorageQuantity,
+                COALESCE(SUM(ss.Quantity), 0) AS StoreSalesQuantity,
+                COALESCE(SUM(os.Quantity), 0) AS OnlineSalesQuantity,
+                COALESCE(SUM(COALESCE(ss.Quantity, 0)) + SUM(COALESCE(os.Quantity, 0)), 0) AS TotalSalesQuantity,
+                p.Availability
+            FROM 
+                Products p
+            LEFT JOIN 
+                Storage s ON p.ProductID = s.ProductID
+            LEFT JOIN 
+                StoreSales ss ON p.ProductID = ss.ProductID
+            LEFT JOIN 
+                OnlineSales os ON p.ProductID = os.ProductID
+            GROUP BY 
+                p.ProductID, p.ProductName, p.Price, p.Availability, s.Quantity
+            ORDER BY 
+                p.ProductID;
         '''
         try:
             self.db.cursor.execute(query)
@@ -244,77 +259,85 @@ class StoreApp:
         report = self.report.get_sales_report()
         print("\nSales Report:")
         for row in report:
+            status = "✅ Active" if row.Availability else "🚫 Inactive"
             print(f"ProductID: {row.ProductID}, Name: {row.ProductName}, "
                   f"Price: {row.Price}, Storage: {row.StorageQuantity}, "
                   f"Store Sales: {row.StoreSalesQuantity}, Online Sales: {row.OnlineSalesQuantity}, "
-                  f"Total Sales: {row.TotalSalesQuantity}")
+                  f"Total Sales: {row.TotalSalesQuantity}, Status: {status}")
 
-    def run_interactive(self) -> None:
-        """Runs an interactive command-line interface."""
+    def run_interactive(self):
         while True:
-            print("\nStore Management System")
+            print("\n🛍️ Store Management Menu")
             print("1. Add new product")
-            print("2. Add product to inventory")
-            print("3. Record store sale")
-            print("4. Record online sale")
-            print("5. Display inventory")
-            print("6. Display sales report")
-            print("7. Exit")
-            choice = input("Enter your choice (1-7): ")
+            print("2. Add product to storage")
+            print("3. Delete product")
+            print("4. Record store sale")
+            print("5. Record online sale")
+            print("6. Show current inventory")
+            print("7. Show sales report")
+            print("8. Exit")
+
+            choice = input("Enter your choice (1-8): ")
 
             try:
                 if choice == '1':
                     name = input("Enter product name: ")
                     price = float(input("Enter product price: "))
                     product_id = self.add_new_product(name, price)
-                    print(f"Product added with ProductID: {product_id}")
+                    print(f"✅ Product added with ProductID: {product_id}")
 
                 elif choice == '2':
                     product_id = int(input("Enter ProductID: "))
-                    # بررسی وجود ProductID
                     if not self.store.check_product_exists(product_id):
-                        print(f"خطا: محصول با شناسه {product_id} در جدول محصولات وجود ندارد.")
-                        continue  # بازگشت به منوی اصلی بدون انجام اقدام دیگر
+                        print(f"❌ Error: ProductID {product_id} does not exist.")
+                        continue
                     quantity = int(input("Enter quantity to add: "))
                     if quantity <= 0:
-                        print("خطا: تعداد باید مثبت باشد.")
+                        print("❌ Quantity must be greater than 0.")
                         continue
                     self.add_product_to_inventory(product_id, quantity)
 
                 elif choice == '3':
-                    product_id = int(input("Enter ProductID: "))
-                    quantity = int(input("Enter quantity sold: "))
-                    self.record_store_sale(product_id, quantity)
+                    product_id = int(input("Enter ProductID to delete: "))
+                    confirm = input(f"⚠️ Are you sure you want to deactivate ProductID {product_id}? (yes/no): ").strip().lower()
+                    if confirm == 'yes':
+                        self.storage.delete_product(product_id)
+                    else:
+                        print("❌ Deactivation cancelled.")
 
                 elif choice == '4':
                     product_id = int(input("Enter ProductID: "))
-                    quantity = int(input("Enter quantity sold: "))
-                    self.record_online_sale(product_id, quantity)
+                    quantity = int(input("Enter quantity sold (store): "))
+                    self.record_store_sale(product_id, quantity)
 
                 elif choice == '5':
-                    self.display_inventory()
+                    product_id = int(input("Enter ProductID: "))
+                    quantity = int(input("Enter quantity sold (online): "))
+                    self.record_online_sale(product_id, quantity)
 
                 elif choice == '6':
-                    self.display_sales_report()
+                    self.display_inventory()
 
                 elif choice == '7':
-                    print("Exiting...")
+                    self.display_sales_report()
+
+                elif choice == '8':
+                    print("👋 Exiting the program...")
                     break
 
                 else:
-                    print("Invalid choice. Please enter a number between 1 and 7.")
+                    print("❌ Invalid choice. Please enter a number between 1 and 8.")
 
             except ValueError as e:
-                print(f"Invalid input: {e}")
+                print(f"⚠️ Invalid input: {e}")
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    # Initialize the application
     app = StoreApp(
-        server='.',  # Replace with your SQL Server name (e.g., localhost)
+        server='.',
         database='StoreDB',
-        driver='{ODBC Driver 17 for SQL Server}'  # Use installed ODBC driver
+        driver='{ODBC Driver 17 for SQL Server}'
     )
 
     try:
