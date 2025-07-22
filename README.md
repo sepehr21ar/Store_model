@@ -11,7 +11,7 @@
 
 It includes SQL **triggers** to automatically update inventory after sales, making it a reliable and efficient tool for small to medium-sized retail businesses.
 
----
+
 
 ## ✨ Features
 
@@ -23,7 +23,6 @@ It includes SQL **triggers** to automatically update inventory after sales, maki
 - **Error Handling**: Validates product IDs, quantities, and stock availability  
 - **SQL Server Integration**: Uses `pyodbc` for seamless database connectivity
 
----
 
 ## 🛠️ Prerequisites
 
@@ -47,6 +46,8 @@ SQL Server Management Studio (SSMS) (optional)
 Use SQL Server Management Studio or any SQL client and execute the following SQL script:
 
 <details> <summary>📂 Click to expand SQL setup</summary>
+
+--->
 
 IF EXISTS (SELECT name FROM sys.databases WHERE name = N'StoreDB')
 BEGIN
@@ -177,6 +178,7 @@ BEGIN
 END;
 GO
 
+
 </details>
 3. Insert Sample Data
 
@@ -227,7 +229,9 @@ Prevents sales if insufficient stock
 
 User-friendly error messages on failure
 
+I will check posible errors...
 🤝 Contributing
 Fork the repository
 
 This project is open-source. Use it freely for learning or commercial use. Contributions are encouraged!
+wait for other projects

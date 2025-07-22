@@ -1,0 +1,24 @@
+name: File Update Notification
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+
+      - name: Print commit info and changed file names only
+        run: |
+          echo "✅ فایل‌ها به‌روزرسانی شدند!"
+          echo "🔁 Commit SHA: ${{ github.sha }}"
+          echo "📝 Commit Message: ${{ github.event.head_commit.message }}"
+          echo "👤 Committed by: ${{ github.actor }}"
+          echo "📂 Changed files in this commit:"
+          git diff-tree --no-commit-id --name-only -r ${{ github.sha }}
