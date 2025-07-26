@@ -1,0 +1,7 @@
+[2025-07-26 22:14:41] StoreSale: ID=1 QTY=8
+[2025-07-26 22:15:01] InventoryUpdated: ID=1 QTY=6
+[2025-07-26 22:17:04] OnlineSale: ID=1 QTY=7
+[2025-07-26 22:19:00] InventoryUpdated: ID=2 QTY=3
+[2025-07-26 22:29:30] ProductAdded: ID=7 Name=Phone Holder
+[2025-07-26 22:55:44] InventoryUpdated: ID=6(Monitor) QTY=4
+[2025-07-26 22:56:16] OnlineSale: ID=5(mousePad) QTY=5

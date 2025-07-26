@@ -229,7 +229,12 @@ class StoreApp:
     def stop(self) -> None:
         """Stops the application and closes the database connection."""
         self.db.close()
-
+    def get_product_by_id(self, product_id: int) -> Optional[Product]:
+            inventory = self.storage.get_inventory()
+            for product in inventory:
+                if product.product_id == product_id:
+                    return product
+            return None
     def add_product_to_inventory(self, product_id: int, quantity: int) -> None:
         """Adds a product to inventory."""
         self.storage.add_product(product_id, quantity)
