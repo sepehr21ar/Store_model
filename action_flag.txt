@@ -5,3 +5,14 @@
 [2025-07-26 22:29:30] ProductAdded: ID=7 Name=Phone Holder
 [2025-07-26 22:55:44] InventoryUpdated: ID=6(Monitor) QTY=4
 [2025-07-26 22:56:16] OnlineSale: ID=5(mousePad) QTY=5
+[2025-07-27 09:01:44] StoreSale: ID=2(Smartphone X) QTY=1
+[2025-07-28 22:56:59] InventoryUpdated: ID=3(Headphones) QTY=11
+[2025-07-28 22:58:39] ProductActivated: ID=3(Headphones)
+[2025-07-28 22:59:18] StoreSale: ID=3(Headphones) QTY=3
+       [2025-07-28 23:39:59] ✅ This is a test log line.
+[2025-07-28 23:44:58] ✅ This is a test log line.
+[2025-07-28 23:50:33] ✅ This is a test log line.
+[2025-07-28 23:52:55] ✅ This is a test log line.
+[2025-07-29 00:04:01] ✅ This is a test log line.
+[2025-07-29 11:58:38] ProductDeactivated: ID=3
+[2025-07-29 11:58:52] InventoryUpdated: ID=2(Smartphone X) QTY=2

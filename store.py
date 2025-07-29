@@ -113,6 +113,16 @@ class StorageManager:
         except pyodbc.Error as e:
             print(f"Error deactivating product: {e}")
             raise
+    def activate_product(self, product_id: int) -> None:
+        """Marks a product as active (Available)."""
+        query = "UPDATE Products SET Availability = 1 WHERE ProductID = ?"
+        try:
+            self.db.cursor.execute(query, (product_id,))
+            self.db.commit()
+            print(f"✅ ProductID {product_id} marked as active.")
+        except pyodbc.Error as e:
+            print(f"Error activating product: {e}")
+            raise
 
 class StoreManager:
     def __init__(self, db: DatabaseConnection):
