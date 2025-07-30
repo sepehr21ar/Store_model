@@ -1,6 +1,6 @@
 import gradio as gr
 import pandas as pd
-from store import StoreApp, Product
+from store import StoreApp
 import os
 from datetime import datetime
 
@@ -10,18 +10,15 @@ def log_action_to_file(action: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"[{timestamp}] {action}\n")
 
-# Initialize the app
-app = StoreApp(
-    server='.',
-    database='StoreDB',
-    driver='{ODBC Driver 17 for SQL Server}'
-)
+# Initialize the app with SQLite
+app = StoreApp("store.db")  # یا فقط ()StoreApp برای استفاده از مقدار پیش‌فرض
 
+# بقیه کدها بدون تغییر...
 # Gradio interface functions
 def start_app():
     try:
         app.start()
-        return "✅ Successfully connected to the database."
+        return "✅ Successfully connected to the SQLite database."
     except Exception as e:
         return f"❌ Database connection error: {e}"
 
@@ -106,18 +103,19 @@ def show_sales_report():
         if not report:
             return pd.DataFrame(), "⚠️ No sales data found."
         data = [{
-            "Product ID": row.ProductID,
-            "Name": row.ProductName,
-            "Price": f"{row.Price:.2f}",
-            "Inventory": row.StorageQuantity,
-            "Store Sales": row.StoreSalesQuantity,
-            "Online Sales": row.OnlineSalesQuantity,
-            "Total Sales": row.TotalSalesQuantity,
-            "Status": "Active" if row.Availability else "Inactive"
+            "Product ID": row[0],  # ProductID
+            "Name": row[1],       # ProductName
+            "Price": f"{row[2]:.2f}",  # Price
+            "Inventory": row[3],  # StorageQuantity
+            "Store Sales": row[4], # StoreSalesQuantity
+            "Online Sales": row[5], # OnlineSalesQuantity
+            "Total Sales": row[6], # TotalSalesQuantity
+            "Status": "Active" if row[7] else "Inactive"  # Availability
         } for row in report]
         return pd.DataFrame(data), "✅ Sales report loaded."
     except Exception as e:
         return pd.DataFrame(), f"❌ Error loading sales report: {e}"
+
 def manage_product_status(product_id: str, action: str):
     try:
         product_id = int(product_id)
@@ -219,5 +217,3 @@ if __name__ == "__main__":
         demo.launch()
     finally:
         app.stop()
-
-

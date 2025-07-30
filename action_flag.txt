@@ -16,3 +16,7 @@
 [2025-07-29 00:04:01] ✅ This is a test log line.
 [2025-07-29 11:58:38] ProductDeactivated: ID=3
 [2025-07-29 11:58:52] InventoryUpdated: ID=2(Smartphone X) QTY=2
+[2025-07-30 19:32:33] OnlineSale: ID=3(Headphones) QTY=32
+[2025-07-30 19:34:16] ProductAdded: ID=5 Name=mouse
+[2025-07-30 19:34:33] ProductDeactivated: ID=4
+[2025-07-30 19:34:54] InventoryUpdated: ID=4(Smartwatch) QTY=2

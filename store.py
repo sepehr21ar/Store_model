@@ -1,4 +1,4 @@
-import pyodbc
+import sqlite3
 from typing import List, Tuple, Optional
 from datetime import datetime
 from dataclasses import dataclass
@@ -12,23 +12,21 @@ class Product:
     quantity: int
 
 class DatabaseConnection:
-    """Manages connection to SQL Server database."""
-    def __init__(self, server: str, database: str, driver: str):
-        self.server = server
-        self.database = database
-        self.driver = driver
+    """Manages connection to SQLite database."""
+    def __init__(self, db_path: str = "store.db"):
+        self.db_path = db_path
         self.conn = None
         self.cursor = None
 
     def connect(self) -> None:
         """Establishes connection to the database."""
         try:
-            self.conn = pyodbc.connect(
-                f'DRIVER={self.driver};SERVER={self.server};DATABASE={self.database};Trusted_Connection=yes'
-            )
+            self.conn = sqlite3.connect(self.db_path)
             self.cursor = self.conn.cursor()
-            print("Successfully connected to the database.")
-        except pyodbc.Error as e:
+            print("Successfully connected to SQLite database.")
+            # Enable foreign key constraints
+            self.cursor.execute("PRAGMA foreign_keys = ON")
+        except sqlite3.Error as e:
             print(f"Connection error: {e}")
             raise
 
@@ -52,19 +50,19 @@ class StorageManager:
 
     def add_product(self, product_id: int, quantity: int) -> None:
         """Adds or updates product quantity in Storage."""
-        query = '''
-            IF EXISTS (SELECT 1 FROM Storage WHERE ProductID = ?)
-                UPDATE Storage SET Quantity = Quantity + ? WHERE ProductID = ?
-            ELSE
-                INSERT INTO Storage (ProductID, Quantity) VALUES (?, ?)
-        '''
-        try:
-            self.db.cursor.execute(query, (product_id, quantity, product_id, product_id, quantity))
-            self.db.commit()
-            print(f"Added {quantity} units of ProductID {product_id} to Storage.")
-        except pyodbc.Error as e:
-            print(f"Error adding product to storage: {e}")
-            raise
+        check_query = "SELECT 1 FROM Storage WHERE ProductID = ?"
+        self.db.cursor.execute(check_query, (product_id,))
+        exists = self.db.cursor.fetchone()
+        
+        if exists:
+            update_query = "UPDATE Storage SET Quantity = Quantity + ? WHERE ProductID = ?"
+            self.db.cursor.execute(update_query, (quantity, product_id))
+        else:
+            insert_query = "INSERT INTO Storage (ProductID, Quantity) VALUES (?, ?)"
+            self.db.cursor.execute(insert_query, (product_id, quantity))
+            
+        self.db.commit()
+        print(f"Added {quantity} units of ProductID {product_id} to Storage.")
 
     def get_inventory(self) -> List[Product]:
         """Retrieves current inventory from Storage."""
@@ -76,25 +74,24 @@ class StorageManager:
         try:
             self.db.cursor.execute(query)
             rows = self.db.cursor.fetchall()
-            return [Product(row.ProductID, row.ProductName, row.Price, row.Quantity) for row in rows]
-        except pyodbc.Error as e:
+            return [Product(row[0], row[1], row[2], row[3]) for row in rows]
+        except sqlite3.Error as e:
             print(f"Error retrieving inventory: {e}")
             raise
 
     def add_new_product(self, name: str, price: float) -> int:
-        "Add a new product to the Products table and return its ID."
+        """Add a new product to the Products table and return its ID."""
         query = '''
             INSERT INTO Products (ProductName, Price, Availability)
-            OUTPUT INSERTED.ProductID
             VALUES (?, ?, 1)
         '''
         try:
             self.db.cursor.execute(query, (name, price))
-            product_id = self.db.cursor.fetchone()[0]
             self.db.commit()
+            product_id = self.db.cursor.lastrowid
             print(f"Added new product: {name} with ID {product_id}.")
             return int(product_id)
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"Error adding new product: {e}")
             raise
 
@@ -102,7 +99,7 @@ class StorageManager:
         query = "SELECT Availability FROM Products WHERE ProductID = ?"
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
-        return row and row.Availability == 1
+        return row and row[0] == 1
 
     def delete_product(self, product_id: int) -> None:
         query = "UPDATE Products SET Availability = 0 WHERE ProductID = ?"
@@ -110,9 +107,10 @@ class StorageManager:
             self.db.cursor.execute(query, (product_id,))
             self.db.commit()
             print(f"❌ ProductID {product_id} marked as inactive.")
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"Error deactivating product: {e}")
             raise
+
     def activate_product(self, product_id: int) -> None:
         """Marks a product as active (Available)."""
         query = "UPDATE Products SET Availability = 1 WHERE ProductID = ?"
@@ -120,7 +118,7 @@ class StorageManager:
             self.db.cursor.execute(query, (product_id,))
             self.db.commit()
             print(f"✅ ProductID {product_id} marked as active.")
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"Error activating product: {e}")
             raise
 
@@ -148,10 +146,10 @@ class StoreManager:
             VALUES (?, ?, ?)
         '''
         try:
-            self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
+            self.db.cursor.execute(query, (product_id, quantity, datetime.now().isoformat()))
             self.db.commit()
             print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"❌ Error recording store sale: {e}")
             raise
 
@@ -174,10 +172,10 @@ class OnlineShopManager:
             VALUES (?, ?, ?)
         '''
         try:
-            self.db.cursor.execute(query, (product_id, quantity, datetime.now()))
+            self.db.cursor.execute(query, (product_id, quantity, datetime.now().isoformat()))
             self.db.commit()
             print(f"✅ Online sale recorded for ProductID {product_id}, Quantity: {quantity}")
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"❌ Error recording online sale: {e}")
             raise
 
@@ -199,34 +197,29 @@ class ReportManager:
                 p.ProductName,
                 p.Price,
                 COALESCE(s.Quantity, 0) AS StorageQuantity,
-                COALESCE(SUM(ss.Quantity), 0) AS StoreSalesQuantity,
-                COALESCE(SUM(os.Quantity), 0) AS OnlineSalesQuantity,
-                COALESCE(SUM(COALESCE(ss.Quantity, 0)) + SUM(COALESCE(os.Quantity, 0)), 0) AS TotalSalesQuantity,
+                COALESCE((SELECT SUM(ss.Quantity) FROM StoreSales ss WHERE ss.ProductID = p.ProductID), 0) AS StoreSalesQuantity,
+                COALESCE((SELECT SUM(os.Quantity) FROM OnlineSales os WHERE os.ProductID = p.ProductID), 0) AS OnlineSalesQuantity,
+                COALESCE((SELECT SUM(ss.Quantity) FROM StoreSales ss WHERE ss.ProductID = p.ProductID), 0) + 
+                COALESCE((SELECT SUM(os.Quantity) FROM OnlineSales os WHERE os.ProductID = p.ProductID), 0) AS TotalSalesQuantity,
                 p.Availability
             FROM 
                 Products p
             LEFT JOIN 
                 Storage s ON p.ProductID = s.ProductID
-            LEFT JOIN 
-                StoreSales ss ON p.ProductID = ss.ProductID
-            LEFT JOIN 
-                OnlineSales os ON p.ProductID = os.ProductID
-            GROUP BY 
-                p.ProductID, p.ProductName, p.Price, p.Availability, s.Quantity
             ORDER BY 
                 p.ProductID;
         '''
         try:
             self.db.cursor.execute(query)
             return self.db.cursor.fetchall()
-        except pyodbc.Error as e:
+        except sqlite3.Error as e:
             print(f"Error generating sales report: {e}")
             raise
 
 class StoreApp:
     """Main application to coordinate storage, store, online shop, and reporting operations."""
-    def __init__(self, server: str, database: str, driver: str):
-        self.db = DatabaseConnection(server, database, driver)
+    def __init__(self, db_path: str = "store.db"):
+        self.db = DatabaseConnection(db_path)
         self.storage = StorageManager(self.db)
         self.store = StoreManager(self.db)
         self.online_shop = OnlineShopManager(self.db)
@@ -239,12 +232,14 @@ class StoreApp:
     def stop(self) -> None:
         """Stops the application and closes the database connection."""
         self.db.close()
+    
     def get_product_by_id(self, product_id: int) -> Optional[Product]:
-            inventory = self.storage.get_inventory()
-            for product in inventory:
-                if product.product_id == product_id:
-                    return product
-            return None
+        inventory = self.storage.get_inventory()
+        for product in inventory:
+            if product.product_id == product_id:
+                return product
+        return None
+
     def add_product_to_inventory(self, product_id: int, quantity: int) -> None:
         """Adds a product to inventory."""
         self.storage.add_product(product_id, quantity)
@@ -274,11 +269,11 @@ class StoreApp:
         report = self.report.get_sales_report()
         print("\nSales Report:")
         for row in report:
-            status = "✅ Active" if row.Availability else "🚫 Inactive"
-            print(f"ProductID: {row.ProductID}, Name: {row.ProductName}, "
-                  f"Price: {row.Price}, Storage: {row.StorageQuantity}, "
-                  f"Store Sales: {row.StoreSalesQuantity}, Online Sales: {row.OnlineSalesQuantity}, "
-                  f"Total Sales: {row.TotalSalesQuantity}, Status: {status}")
+            status = "✅ Active" if row[7] else "🚫 Inactive"
+            print(f"ProductID: {row[0]}, Name: {row[1]}, "
+                  f"Price: {row[2]}, Storage: {row[3]}, "
+                  f"Store Sales: {row[4]}, Online Sales: {row[5]}, "
+                  f"Total Sales: {row[6]}, Status: {status}")
 
     def run_interactive(self):
         while True:
@@ -349,11 +344,7 @@ class StoreApp:
                 print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    app = StoreApp(
-        server='.',
-        database='StoreDB',
-        driver='{ODBC Driver 17 for SQL Server}'
-    )
+    app = StoreApp("store.db")
 
     try:
         app.start()
