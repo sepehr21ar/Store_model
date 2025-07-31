@@ -20,3 +20,13 @@
 [2025-07-30 19:34:16] ProductAdded: ID=5 Name=mouse
 [2025-07-30 19:34:33] ProductDeactivated: ID=4
 [2025-07-30 19:34:54] InventoryUpdated: ID=4(Smartwatch) QTY=2
+[2025-07-31 10:41:43] OnlineSale: ID=2(Smartphone X) QTY=8
+[2025-07-31 10:42:06] StoreSale: ID=4(Smartwatch) QTY=4
+[2025-07-31 10:44:04] StoreSale: ID=4(Smartwatch) QTY=4
+[2025-07-31 10:46:05] StoreSale: ID=4(Smartwatch) QTY=3
+[2025-07-31 17:52:18] StoreSale: ID=2(Smartphone X) QTY=3
+[2025-07-31 17:52:28] InventoryUpdated: ID=4(Smartwatch) QTY=3
+[2025-07-31 17:53:02] InventoryUpdated: ID=5(mouse) QTY=6
+[2025-07-31 17:53:27] OnlineSale: ID=5(mouse) QTY=6
+[2025-07-31 17:53:37] ProductActivated: ID=4
+[2025-07-31 17:53:51] OnlineSale: ID=4(Smartwatch) QTY=3

@@ -21,7 +21,7 @@ class DatabaseConnection:
     def connect(self) -> None:
         """Establishes connection to the database."""
         try:
-            self.conn = sqlite3.connect(self.db_path)
+            self.conn = sqlite3.connect(self.db_path,check_same_thread=False)
             self.cursor = self.conn.cursor()
             print("Successfully connected to SQLite database.")
             # Enable foreign key constraints
@@ -137,6 +137,8 @@ class StoreManager:
         if not self.storage.is_product_active(product_id):
             print(f"❌ Product {product_id} is inactive and cannot be sold.")
             return
+        if not self.storage.is_product_active(product_id):
+            raise ValueError(f"The product with ID {product_id} is inactive and cannot be sold.")
         if quantity <= 0:
             print("❌ Quantity must be greater than 0.")
             return

@@ -58,6 +58,18 @@ def record_store_sale(product_id: str, quantity: str):
     try:
         product_id = int(product_id)
         quantity = int(quantity)
+        
+        # Check if product exists
+        if not app.store.check_product_exists(product_id):
+            return f"❌ Product ID {product_id} does not exist.", product_id, quantity
+        
+        # Check if product is active
+        if not app.storage.is_product_active(product_id):
+            return f"❌ Product ID {product_id} is inactive and cannot be sold.", product_id, quantity
+            
+        if quantity <= 0:
+            return "❌ Quantity must be greater than zero.", product_id, quantity
+
         app.record_store_sale(product_id, quantity)
         product = app.get_product_by_id(product_id)
         product_name = product.name if product else "Unknown"
@@ -72,6 +84,18 @@ def record_online_sale(product_id: str, quantity: str):
     try:
         product_id = int(product_id)
         quantity = int(quantity)
+        
+        # Check if product exists
+        if not app.store.check_product_exists(product_id):
+            return f"❌ Product ID {product_id} does not exist.", product_id, quantity
+        
+        # Check if product is active
+        if not app.storage.is_product_active(product_id):
+            return f"❌ Product ID {product_id} is inactive and cannot be sold.", product_id, quantity
+            
+        if quantity <= 0:
+            return "❌ Quantity must be greater than zero.", product_id, quantity
+
         app.record_online_sale(product_id, quantity)
         product = app.get_product_by_id(product_id)
         product_name = product.name if product else "Unknown"
@@ -81,7 +105,6 @@ def record_online_sale(product_id: str, quantity: str):
         return f"❌ Invalid input: {e}", product_id, quantity
     except Exception as e:
         return f"❌ Error recording online sale: {e}", product_id, quantity
-
 def show_inventory():
     try:
         inventory = app.storage.get_inventory()
