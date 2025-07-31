@@ -2,7 +2,7 @@ name: File Update Notification
 
 on:
   push:
-    branches: [ main ]
+    branches: [ sqlite-version ]
 
 jobs:
   notify:
