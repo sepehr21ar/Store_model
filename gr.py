@@ -11,10 +11,7 @@ def log_action_to_file(action: str):
         f.write(f"[{timestamp}] {action}\n")
 
 # Initialize the app with SQLite
-app = StoreApp("store.db")  # یا فقط ()StoreApp برای استفاده از مقدار پیش‌فرض
-
-# بقیه کدها بدون تغییر...
-# Gradio interface functions
+app = StoreApp("store.db")
 def start_app():
     try:
         app.start()
@@ -59,11 +56,9 @@ def record_store_sale(product_id: str, quantity: str):
         product_id = int(product_id)
         quantity = int(quantity)
         
-        # Check if product exists
         if not app.store.check_product_exists(product_id):
             return f"❌ Product ID {product_id} does not exist.", product_id, quantity
-        
-        # Check if product is active
+
         if not app.storage.is_product_active(product_id):
             return f"❌ Product ID {product_id} is inactive and cannot be sold.", product_id, quantity
             
