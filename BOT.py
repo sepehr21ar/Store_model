@@ -2,7 +2,7 @@ import telebot
 from store import StoreApp
 from datetime import datetime
 
-TOKEN = "YOUR_BOT_TOKEN_HERE"
+TOKEN = "8345452141:AAFgXQrL17J12OD4lA4FYXcRowlyiCwAtHk"
 bot = telebot.TeleBot(TOKEN)
 app = StoreApp("store.db")
 app.start()
