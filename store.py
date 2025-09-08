@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
+
 @dataclass
 class Product:
     """Represents a product in the store."""
@@ -10,6 +11,7 @@ class Product:
     name: str
     price: float
     quantity: int
+
 
 class DatabaseConnection:
     """Manages connection to SQLite database."""
@@ -21,7 +23,7 @@ class DatabaseConnection:
     def connect(self) -> None:
         """Establishes connection to the database."""
         try:
-            self.conn = sqlite3.connect(self.db_path,check_same_thread=False)
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.cursor = self.conn.cursor()
             print("Successfully connected to SQLite database.")
             # Enable foreign key constraints
@@ -43,6 +45,7 @@ class DatabaseConnection:
         if self.conn:
             self.conn.commit()
 
+
 class StorageManager:
     """Manages storage operations."""
     def __init__(self, db: DatabaseConnection):
@@ -53,14 +56,14 @@ class StorageManager:
         check_query = "SELECT 1 FROM Storage WHERE ProductID = ?"
         self.db.cursor.execute(check_query, (product_id,))
         exists = self.db.cursor.fetchone()
-        
+
         if exists:
             update_query = "UPDATE Storage SET Quantity = Quantity + ? WHERE ProductID = ?"
             self.db.cursor.execute(update_query, (quantity, product_id))
         else:
             insert_query = "INSERT INTO Storage (ProductID, Quantity) VALUES (?, ?)"
             self.db.cursor.execute(insert_query, (product_id, quantity))
-            
+
         self.db.commit()
         print(f"Added {quantity} units of ProductID {product_id} to Storage.")
 
@@ -122,69 +125,96 @@ class StorageManager:
             print(f"Error activating product: {e}")
             raise
 
+    def has_sufficient_quantity(self, product_id: int, quantity: int) -> bool:
+        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        row = self.db.cursor.fetchone()
+        if row is None:
+            return False
+        # Check numeric quantity only
+        return int(row[0]) >= quantity
+
+
 class StoreManager:
     def __init__(self, db: DatabaseConnection):
         self.db = db
         self.storage = StorageManager(db)
 
     def check_product_exists(self, product_id: int) -> bool:
-        "Checks whether the ProductID exists in the Products table."
+        """Checks whether the ProductID exists in the Products table."""
         query = "SELECT 1 FROM Products WHERE ProductID = ?"
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
 
     def record_sale(self, product_id: int, quantity: int):
-        if not self.storage.is_product_active(product_id):
-            print(f"❌ Product {product_id} is inactive and cannot be sold.")
-            return
-        if not self.storage.is_product_active(product_id):
-            raise ValueError(f"The product with ID {product_id} is inactive and cannot be sold.")
-        if quantity <= 0:
-            print("❌ Quantity must be greater than 0.")
-            return
+        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        row = self.db.cursor.fetchone()
+        available_quantity = row[0] if row else 0
 
-        query = '''
+        if available_quantity < quantity:
+            raise ValueError(f"❌ Insufficient stock in storage. Requested: {quantity}, Available: {available_quantity}.")
+
+        if not self.storage.is_product_active(product_id):
+            raise ValueError(f"❌ Product {product_id} is inactive and cannot be sold.")
+
+        if quantity <= 0:
+            raise ValueError("❌ Quantity must be greater than 0.")
+
+        query_insert = '''
             INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
         '''
         try:
-            self.db.cursor.execute(query, (product_id, quantity, datetime.now().isoformat()))
+            self.db.cursor.execute(query_insert, (product_id, quantity, datetime.now().isoformat()))
             self.db.commit()
             print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except sqlite3.Error as e:
             print(f"❌ Error recording store sale: {e}")
             raise
 
+
+
+
 class OnlineShopManager:
     """Manages online shop sales."""
     def __init__(self, db: DatabaseConnection):
         self.db = db
         self.storage = StorageManager(db)
+    def record_sale(self, product_id: int, quantity: int):
+        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        self.db.cursor.execute(query, (product_id,))
+        row = self.db.cursor.fetchone()
+        available_quantity = row[0] if row else 0
 
-    def record_sale(self, product_id: int, quantity: int) -> None:
-        if not self.check_product_exists(product_id):
-            raise ValueError(f"The product with ID {product_id} does not exist in the products table.")
+        if available_quantity < quantity:
+            raise ValueError(f"❌ Insufficient stock in storage. Requested: {quantity}, Available: {available_quantity}.")
+
         if not self.storage.is_product_active(product_id):
-            raise ValueError(f"The product with ID {product_id} is inactive and cannot be sold.")
-        if quantity <= 0:
-            raise ValueError("Quantity must be greater than 0.")
+            raise ValueError(f"❌ Product {product_id} is inactive and cannot be sold.")
 
-        query = '''
-            INSERT INTO OnlineSales (ProductID, Quantity, SaleDate)
+        if quantity <= 0:
+            raise ValueError("❌ Quantity must be greater than 0.")
+
+        query_insert = '''
+            INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
         '''
         try:
-            self.db.cursor.execute(query, (product_id, quantity, datetime.now().isoformat()))
+            self.db.cursor.execute(query_insert, (product_id, quantity, datetime.now().isoformat()))
             self.db.commit()
-            print(f"✅ Online sale recorded for ProductID {product_id}, Quantity: {quantity}")
+            print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except sqlite3.Error as e:
-            print(f"❌ Error recording online sale: {e}")
+            print(f"❌ Error recording store sale: {e}")
             raise
+
+
 
     def check_product_exists(self, product_id: int) -> bool:
         query = "SELECT 1 FROM Products WHERE ProductID = ?"
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
+
 
 class ReportManager:
     """Manages reporting operations."""
@@ -218,6 +248,7 @@ class ReportManager:
             print(f"Error generating sales report: {e}")
             raise
 
+
 class StoreApp:
     """Main application to coordinate storage, store, online shop, and reporting operations."""
     def __init__(self, db_path: str = "store.db"):
@@ -234,7 +265,7 @@ class StoreApp:
     def stop(self) -> None:
         """Stops the application and closes the database connection."""
         self.db.close()
-    
+
     def get_product_by_id(self, product_id: int) -> Optional[Product]:
         inventory = self.storage.get_inventory()
         for product in inventory:
@@ -344,6 +375,7 @@ class StoreApp:
                 print(f"⚠️ Invalid input: {e}")
             except Exception as e:
                 print(f"❌ Error: {e}")
+
 
 if __name__ == "__main__":
     app = StoreApp("store.db")

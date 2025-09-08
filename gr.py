@@ -4,20 +4,24 @@ from store import StoreApp
 import os
 from datetime import datetime
 
+
 def log_action_to_file(action: str):
     """Log performed actions to a flag file."""
     with open("action_flag.txt", "a", encoding="utf-8") as f:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"[{timestamp}] {action}\n")
 
+
 # Initialize the app with SQLite
 app = StoreApp("store.db")
+
 def start_app():
     try:
         app.start()
         return "✅ Successfully connected to the SQLite database."
     except Exception as e:
         return f"❌ Database connection error: {e}"
+
 
 def add_new_product(name: str, price: str):
     try:
@@ -29,6 +33,7 @@ def add_new_product(name: str, price: str):
         return f"❌ Invalid input: {e}", name, price
     except Exception as e:
         return f"❌ Error adding product: {e}", name, price
+
 
 def add_to_inventory(product_id: str, quantity: str):
     try:
@@ -51,55 +56,80 @@ def add_to_inventory(product_id: str, quantity: str):
     except Exception as e:
         return f"❌ Error adding to inventory: {e}", product_id, quantity
 
+
 def record_store_sale(product_id: str, quantity: str):
     try:
         product_id = int(product_id)
         quantity = int(quantity)
-        
+
         if not app.store.check_product_exists(product_id):
             return f"❌ Product ID {product_id} does not exist.", product_id, quantity
 
         if not app.storage.is_product_active(product_id):
             return f"❌ Product ID {product_id} is inactive and cannot be sold.", product_id, quantity
-            
+
         if quantity <= 0:
             return "❌ Quantity must be greater than zero.", product_id, quantity
 
         app.record_store_sale(product_id, quantity)
+
         product = app.get_product_by_id(product_id)
         product_name = product.name if product else "Unknown"
         log_action_to_file(f"StoreSale: ID={product_id}({product_name}) QTY={quantity}")
+
         return f"✅ Store sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
+
     except ValueError as e:
-        return f"❌ Invalid input: {e}", product_id, quantity
+        # پیام خطا را مستقیماً به کاربر نمایش می‌دهد
+        return str(e), product_id, quantity
     except Exception as e:
         return f"❌ Error recording store sale: {e}", product_id, quantity
+
+        app.record_store_sale(product_id, quantity)
+
+        product = app.get_product_by_id(product_id)
+        product_name = product.name if product else "Unknown"
+        log_action_to_file(f"StoreSale: ID={product_id}({product_name}) QTY={quantity}")
+
+        return f"✅ Store sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
+
+    except ValueError as e:
+        return f"{e}", product_id, quantity
+    except Exception as e:
+        return f"❌ Error recording store sale: {e}", product_id, quantity
+
+
 
 def record_online_sale(product_id: str, quantity: str):
     try:
         product_id = int(product_id)
         quantity = int(quantity)
-        
-        # Check if product exists
+
         if not app.store.check_product_exists(product_id):
             return f"❌ Product ID {product_id} does not exist.", product_id, quantity
-        
-        # Check if product is active
+
         if not app.storage.is_product_active(product_id):
             return f"❌ Product ID {product_id} is inactive and cannot be sold.", product_id, quantity
-            
+
         if quantity <= 0:
             return "❌ Quantity must be greater than zero.", product_id, quantity
 
         app.record_online_sale(product_id, quantity)
+
         product = app.get_product_by_id(product_id)
         product_name = product.name if product else "Unknown"
         log_action_to_file(f"OnlineSale: ID={product_id}({product_name}) QTY={quantity}")
+
         return f"✅ Online sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
+
     except ValueError as e:
-        return f"❌ Invalid input: {e}", product_id, quantity
+        # پیام خطا را مستقیماً به کاربر نمایش می‌دهد
+        return str(e), product_id, quantity
     except Exception as e:
         return f"❌ Error recording online sale: {e}", product_id, quantity
+
+
+
 def show_inventory():
     try:
         inventory = app.storage.get_inventory()
@@ -115,24 +145,26 @@ def show_inventory():
     except Exception as e:
         return pd.DataFrame(), f"❌ Error loading inventory: {e}"
 
+
 def show_sales_report():
     try:
         report = app.report.get_sales_report()
         if not report:
             return pd.DataFrame(), "⚠️ No sales data found."
         data = [{
-            "Product ID": row[0],  # ProductID
-            "Name": row[1],       # ProductName
-            "Price": f"{row[2]:.2f}",  # Price
-            "Inventory": row[3],  # StorageQuantity
-            "Store Sales": row[4], # StoreSalesQuantity
+            "Product ID": row[0],   # ProductID
+            "Name": row[1],         # ProductName
+            "Price": f"{row[2]:.2f}",   # Price
+            "Inventory": row[3],    # StorageQuantity
+            "Store Sales": row[4],  # StoreSalesQuantity
             "Online Sales": row[5], # OnlineSalesQuantity
-            "Total Sales": row[6], # TotalSalesQuantity
-            "Status": "Active" if row[7] else "Inactive"  # Availability
+            "Total Sales": row[6],  # TotalSalesQuantity
+            "Status": "Active" if row[7] else "Inactive"   # Availability
         } for row in report]
         return pd.DataFrame(data), "✅ Sales report loaded."
     except Exception as e:
         return pd.DataFrame(), f"❌ Error loading sales report: {e}"
+
 
 def manage_product_status(product_id: str, action: str):
     try:
@@ -151,6 +183,7 @@ def manage_product_status(product_id: str, action: str):
         return f"❌ Invalid input: {e}", product_id
     except Exception as e:
         return f"❌ Error: {e}", product_id
+
 
 # Gradio Interface
 with gr.Blocks(css="h1 {text-align: center;}") as demo:

@@ -30,3 +30,19 @@
 [2025-07-31 17:53:27] OnlineSale: ID=5(mouse) QTY=6
 [2025-07-31 17:53:37] ProductActivated: ID=4
 [2025-07-31 17:53:51] OnlineSale: ID=4(Smartwatch) QTY=3
+[2025-09-08 20:46:47] ProductDeactivated: ID=3
+[2025-09-08 20:53:18] StoreSale: ID=4(Smartwatch) QTY=3
+[2025-09-08 20:53:51] InventoryUpdated: ID=5(mouse) QTY=4
+[2025-09-08 20:54:01] OnlineSale: ID=5(mouse) QTY=33
+[2025-09-08 20:54:33] OnlineSale: ID=5(mouse) QTY=4
+[2025-09-08 20:54:40] StoreSale: ID=5(mouse) QTY=2
+[2025-09-08 21:00:19] StoreSale: ID=1(Laptop Pro) QTY=6
+[2025-09-08 21:00:29] OnlineSale: ID=1(Laptop Pro) QTY=111
+[2025-09-08 21:01:00] StoreSale: ID=1(Laptop Pro) QTY=111
+[2025-09-08 21:06:12] StoreSale: ID=2(Smartphone X) QTY=3
+[2025-09-08 21:06:20] StoreSale: ID=2(Smartphone X) QTY=20
+[2025-09-08 21:14:04] StoreSale: ID=2(Smartphone X) QTY=5
+[2025-09-08 21:14:48] InventoryUpdated: ID=5(mouse) QTY=4
+[2025-09-08 21:16:10] OnlineSale: ID=5(mouse) QTY=1
+[2025-09-08 21:16:22] OnlineSale: ID=5(mouse) QTY=3
+[2025-09-08 21:16:40] StoreSale: ID=4(Smartwatch) QTY=4
