@@ -1,237 +1,222 @@
-# 🛍️ StoreDB Management System
+# 🛍️ Store Management System
 
 ## 📋 Overview
 
-**StoreDB Management System** is a Python-based CLI application designed to manage inventory and sales for a retail store. It connects to a **Microsoft SQL Server** database and offers functionalities such as:
+**Store Management System** is a comprehensive Python-based retail management application that provides multiple user interfaces for complete store operations. It connects to a **SQLite** database and offers functionalities such as:
 
 - Adding new products  
 - Managing stock levels  
 - Recording in-store and online sales  
 - Generating real-time inventory reports  
+- Product activation/deactivation management
+- Multi-interface support (CLI, Web UI, Telegram Bot)
 
 It includes SQL **triggers** to automatically update inventory after sales, making it a reliable and efficient tool for small to medium-sized retail businesses.
-
-
 
 ## ✨ Features
 
 - **Product Management**: Add new products with names and prices  
 - **Inventory Management**: Update product quantities in storage  
-- **Sales Tracking**: Record both in-store and online sales  
+- **Sales Tracking**: Record both in-store and online sales separately
 - **Automatic Inventory Updates**: Triggered by SQL after each sale  
-- **Reports**: View a complete inventory report with product and sales data  
+- **Multiple Interfaces**: CLI menu, Gradio web interface, and Persian Telegram bot
+- **Reports**: View complete inventory and sales reports with detailed analytics
+- **Product Status Control**: Activate/deactivate products for sales management
 - **Error Handling**: Validates product IDs, quantities, and stock availability  
-- **SQL Server Integration**: Uses `pyodbc` for seamless database connectivity
-
+- **SQLite Integration**: Uses local database with automatic triggers
+- **Action Logging**: Comprehensive logging system with timestamps
 
 ## 🛠️ Prerequisites
 
 Ensure the following are installed on your system:
 
-- **Python 3.10+**
-- **pyodbc**  
-  Install via pip:
-  ```bash
-  pip install pyodbc
+- **Python 3.8+**
+- **gradio**: `pip install gradio`
+- **pandas**: `pip install pandas` 
+- **pyTelegramBotAPI**: `pip install pyTelegramBotAPI`
 
-Microsoft SQL Server (Express or full version)
+## 🧱 Database Setup
 
-ODBC Driver 17 for SQL Server
+### 1. Initialize Database
+Run the initialization script to create the SQLite database:
 
-SQL Server Management Studio (SSMS) (optional)
+```bash
+python init_db.py
+```
 
+This creates `store.db` with the following structure:
 
-🧱 Database Setup
-1. Create the Database and Tables
-Use SQL Server Management Studio or any SQL client and execute the following SQL script:
+**Database Schema:**
+- **Products**: Product information with availability status
+- **Storage**: Current inventory levels  
+- **StoreSales**: Physical store sales records
+- **OnlineSales**: Online sales records
+- **Triggers**: Automatic stock reduction on sales
 
-<details> <summary>📂 Click to expand SQL setup</summary>
+### 2. Sample Data
+The initialization includes sample products:
+- Laptop Pro ($1200.00)
+- Smartphone X ($600.00)  
+- Headphones ($150.00)
+- Smartwatch ($250.00)
 
---->
+## 📦 Installation
 
-IF EXISTS (SELECT name FROM sys.databases WHERE name = N'StoreDB')
-BEGIN
-    ALTER DATABASE StoreDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE StoreDB;
-END
-GO
+### 1. Clone the Repository
+```bash
+git clone https://github.com/sepehr21ar/Store_model
+cd Store_model
+```
 
-CREATE DATABASE StoreDB;
-GO
-USE StoreDB;
-GO
+### 2. Install Dependencies
+```bash
+pip install gradio pandas pyTelegramBotAPI
+```
 
--- Products Table
-CREATE TABLE Products (
-    ProductID INT PRIMARY KEY IDENTITY(1,1),
-    ProductName NVARCHAR(70) NOT NULL,
-    Price DECIMAL(10,2) NOT NULL
-);
-GO
+### 3. Initialize Database
+```bash
+python init_db.py
+```
 
--- Store Sales Table
-CREATE TABLE StoreSales (
-    SaleID INT PRIMARY KEY IDENTITY(1,1),
-    ProductID INT NOT NULL,
-    SaleDate DATETIME NOT NULL DEFAULT GETDATE(),
-    Quantity INT NOT NULL CHECK (Quantity > 0),
-    FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
-);
-GO
+### 4. Run Your Preferred Interface
 
--- Storage Table
-CREATE TABLE Storage (
-    StorageID INT PRIMARY KEY IDENTITY(1,1),
-    ProductID INT NOT NULL,
-    Quantity INT NOT NULL CHECK (Quantity >= 0),
-    FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
-);
-GO
+**CLI Interface:**
+```bash
+python store.py
+```
 
--- Online Sales Table
-CREATE TABLE OnlineSales (
-    SaleID INT PRIMARY KEY IDENTITY(1,1),
-    ProductID INT NOT NULL,
-    SaleDate DATETIME NOT NULL DEFAULT GETDATE(),
-    Quantity INT NOT NULL CHECK (Quantity > 0),
-    FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
-);
-GO
+**Web Interface (Gradio):**
+```bash
+python gradio_app.py
+# Navigate to http://localhost:7860
+```
 
-</details>
-2. Add SQL Triggers
-<details> <summary>⚙️ Inventory update triggers</summary>
+**Telegram Bot:**
+```bash
+# Configure your bot token in telegram_bot.py first
+python telegram_bot.py
+```
 
--- Trigger after store sale
-CREATE TRIGGER trg_AfterStoreSale
-ON StoreSales
-AFTER INSERT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DECLARE @ProductID INT, @Quantity INT;
-    DECLARE sale_cursor CURSOR FOR 
-        SELECT ProductID, Quantity FROM inserted;
+## 🎯 Usage
 
-    OPEN sale_cursor;
-    FETCH NEXT FROM sale_cursor INTO @ProductID, @Quantity;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        IF EXISTS (SELECT 1 FROM Storage WHERE ProductID = @ProductID AND Quantity >= @Quantity)
-        BEGIN
-            UPDATE Storage
-            SET Quantity = Quantity - @Quantity
-            WHERE ProductID = @ProductID;
-
-            DELETE FROM Storage WHERE ProductID = @ProductID AND Quantity = 0;
-        END
-        ELSE
-        BEGIN
-            RAISERROR ('Not enough stock for ProductID %d in Storage.', 16, 1, @ProductID);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        FETCH NEXT FROM sale_cursor INTO @ProductID, @Quantity;
-    END
-
-    CLOSE sale_cursor;
-    DEALLOCATE sale_cursor;
-END;
-GO
-
--- Trigger after online sale
-CREATE TRIGGER trg_AfterOnlineSale
-ON OnlineSales
-AFTER INSERT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DECLARE @ProductID INT, @Quantity INT;
-    DECLARE sale_cursor CURSOR FOR 
-        SELECT ProductID, Quantity FROM inserted;
-
-    OPEN sale_cursor;
-    FETCH NEXT FROM sale_cursor INTO @ProductID, @Quantity;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        IF EXISTS (SELECT 1 FROM Storage WHERE ProductID = @ProductID AND Quantity >= @Quantity)
-        BEGIN
-            UPDATE Storage
-            SET Quantity = Quantity - @Quantity
-            WHERE ProductID = @ProductID;
-
-            DELETE FROM Storage WHERE ProductID = @ProductID AND Quantity = 0;
-        END
-        ELSE
-        BEGIN
-            RAISERROR ('Not enough stock for ProductID %d in Storage.', 16, 1, @ProductID);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        FETCH NEXT FROM sale_cursor INTO @ProductID, @Quantity;
-    END
-
-    CLOSE sale_cursor;
-    DEALLOCATE sale_cursor;
-END;
-GO
-
-
-</details>
-3. Insert Sample Data
-
-INSERT INTO Products (ProductName, Price) VALUES
-    ('Laptop Pro', 1200.00),
-    ('Smartphone X', 600.00),
-    ('Headphones', 150.00),
-    ('Smartwatch', 250.00);
-GO
-
-INSERT INTO Storage (ProductID, Quantity) VALUES
-    (1, 20),
-    (2, 30),
-    (3, 50),
-    (4, 15);
-GO
-
-📦 Installation
-1. Clone the Repository
-gh repo clone sepehr21ar/Store_model
-
-2. Install Dependencies
-pip install pyodbc
-
-3. Configure Database Connection
-Update the connection config in store_app.py:
-
-db = DatabaseConnection(
-    server='.', 
-    database='StoreDB', 
-    driver='{ODBC Driver 17 for SQL Server}'
-)
-
-You will see an interactive menu:
+### CLI Interface Menu
+You will see an interactive menu with options:
 1. Add New Product
-2. Add Product to Inventory
-3. Record Store Sale
-4. Record Online Sale
-5. Display Inventory
-6. Clear Database
-7. Exit
+2. Add Product to Inventory  
+3. Delete Product
+4. Record Store Sale
+5. Record Online Sale
+6. Show Current Inventory
+7. Show Sales Report
+8. Exit
 
+### Web Interface Features
+- Tabbed interface for different operations
+- Real-time data tables for inventory and reports
+- User-friendly forms with validation
+- Status feedback for all operations
 
-🛡 Error Handling
-Validates positive quantities and existing Product IDs
+### Telegram Bot Commands
+- Persian language interface
+- Interactive button-based menu
+- Real-time inventory updates
+- Complete sales management
 
-Prevents sales if insufficient stock
+## 📁 Project Structure
 
-User-friendly error messages on failure
+```
+Store_model/
+├── store.py              # Core business logic and CLI interface
+├── store_schema.sql      # Database schema and initial data
+├── init_db.py           # Database initialization script
+├── gradio_app.py        # Web UI using Gradio framework
+├── telegram_bot.py      # Persian Telegram bot interface
+├── store.db             # SQLite database (created after init)
+├── action_flag.txt      # Operations log file
+└── README.md            # Project documentation
+```
 
-I will check posible errors...
-🤝 Contributing
-Fork the repository
+## 🔧 Configuration
 
-This project is open-source. Use it freely for learning or commercial use. Contributions are encouraged!
-wait for other projects
+### Telegram Bot Setup
+1. Create a bot via [@BotFather](https://t.me/botfather)
+2. Replace `TOKEN` in `telegram_bot.py`:
+```python
+TOKEN = "YOUR_BOT_TOKEN_HERE"
+```
+3. Run: `python telegram_bot.py`
+
+### Database Configuration
+Default database path: `store.db`
+Configurable in all interface files if needed.
+
+## 🛡️ Error Handling
+
+- Validates positive quantities and existing Product IDs
+- Prevents sales if insufficient stock available
+- Checks product availability status before sales
+- User-friendly error messages on operation failures
+- Comprehensive input validation across all interfaces
+- Database connection error management
+- Transaction rollback on trigger failures
+
+## 📊 Key Operations
+
+- **Add New Product**: Register products with name and price
+- **Manage Inventory**: Add stock quantities to existing products
+- **Record Sales**: Track store and online sales separately with automatic inventory updates
+- **Generate Reports**: View inventory levels and comprehensive sales statistics
+- **Product Management**: Activate/deactivate products for sales control
+- **Data Export**: Action logging for audit trails
+
+## 🔍 Technical Details
+
+- **Backend**: Python with Object-Oriented Design
+- **Database**: SQLite with automatic triggers for inventory management
+- **Web Framework**: Gradio for interactive web interface
+- **Bot Framework**: pyTelegramBotAPI with Persian language support
+- **Architecture**: Separation of concerns with modular class design
+- **Data Validation**: Multi-layer validation system
+- **Logging**: Timestamp-based operation tracking
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Test all interfaces thoroughly
+4. Commit changes: `git commit -m 'Add feature-name'`
+5. Push to branch: `git push origin feature-name`
+6. Submit a Pull Request
+
+## 🎯 Roadmap
+
+- [ ] User authentication system
+- [ ] REST API development
+- [ ] Data export to Excel/PDF
+- [ ] Advanced analytics and reporting
+- [ ] Multi-language web interface
+- [ ] Docker containerization
+- [ ] Cloud database integration
+- [ ] Mobile app development
+
+## 🐛 Known Issues
+
+- Telegram bot token is hardcoded (should use environment variables)
+- Single-user system (no multi-user authentication)
+- Local SQLite limitation (no concurrent access)
+- No data backup/restore functionality
+
+## 📝 License
+
+This project is open-source under the MIT License. Use it freely for learning or commercial purposes. Contributions are encouraged!
+
+## 📞 Support
+
+For questions, bug reports, or feature requests:
+- Create an issue on GitHub
+- Check existing discussions
+- Contact the development team
+
+***
+
+**Ready to efficiently manage your store operations with multiple interfaces!**

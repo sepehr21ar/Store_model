@@ -3,7 +3,16 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from store import StoreApp
 from datetime import datetime
 
-TOKEN = "8345452141:AAFgXQrL17J12OD4IA4FYXcRowlyiCwAtHk"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN not found in environment variables")
+
 bot = telebot.TeleBot(TOKEN)
 app = StoreApp("store.db")
 app.start()
