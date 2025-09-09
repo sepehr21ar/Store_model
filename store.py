@@ -197,7 +197,7 @@ class OnlineShopManager:
             raise ValueError("❌ Quantity must be greater than 0.")
 
         query_insert = '''
-            INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
+            INSERT INTO OnlineSales (ProductID, Quantity, SaleDate)
             VALUES (?, ?, ?)
         '''
         try:

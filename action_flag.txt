@@ -46,3 +46,7 @@
 [2025-09-08 21:16:10] OnlineSale: ID=5(mouse) QTY=1
 [2025-09-08 21:16:22] OnlineSale: ID=5(mouse) QTY=3
 [2025-09-08 21:16:40] StoreSale: ID=4(Smartwatch) QTY=4
+[2025-09-09 12:14:09] OnlineSale: ID=1(Laptop Pro) QTY=7
+[2025-09-09 12:30:28] OnlineSale: ID=4(Smartwatch) QTY=2
+[2025-09-09 12:32:31] ProductAdded: ID=6 Name=table
+[2025-09-09 12:32:51] InventoryUpdated: ID=6(table) QTY=8
