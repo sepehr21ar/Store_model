@@ -3,6 +3,7 @@ import pandas as pd
 from store import StoreApp
 import os
 from datetime import datetime
+from llm_sql import chat_with_llm
 
 
 def log_action_to_file(action: str):
@@ -12,7 +13,6 @@ def log_action_to_file(action: str):
         f.write(f"[{timestamp}] {action}\n")
 
 
-# Initialize the app with SQLite
 app = StoreApp("store.db")
 
 def start_app():
@@ -80,24 +80,11 @@ def record_store_sale(product_id: str, quantity: str):
         return f"✅ Store sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
 
     except ValueError as e:
-        # پیام خطا را مستقیماً به کاربر نمایش می‌دهد
-        return str(e), product_id, quantity
+        return f"❌ Invalid input: {e}", product_id, quantity
     except Exception as e:
         return f"❌ Error recording store sale: {e}", product_id, quantity
-
-        app.record_store_sale(product_id, quantity)
-
-        product = app.get_product_by_id(product_id)
-        product_name = product.name if product else "Unknown"
-        log_action_to_file(f"StoreSale: ID={product_id}({product_name}) QTY={quantity}")
-
-        return f"✅ Store sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
-
-    except ValueError as e:
-        return f"{e}", product_id, quantity
-    except Exception as e:
-        return f"❌ Error recording store sale: {e}", product_id, quantity
-
+    
+    
 
 
 def record_online_sale(product_id: str, quantity: str):
@@ -123,7 +110,6 @@ def record_online_sale(product_id: str, quantity: str):
         return f"✅ Online sale recorded for Product ID {product_id}, Quantity: {quantity}.", "", ""
 
     except ValueError as e:
-        # پیام خطا را مستقیماً به کاربر نمایش می‌دهد
         return str(e), product_id, quantity
     except Exception as e:
         return f"❌ Error recording online sale: {e}", product_id, quantity
@@ -261,10 +247,46 @@ with gr.Blocks(css="h1 {text-align: center;}") as demo:
             inputs=[manage_product_id, action_choice],
             outputs=[manage_output, manage_product_id]
         )
+ 
+    with gr.Tab("💬 Chat with Database (LLM)"):
+        chatbot = gr.Chatbot(label="Database Assistant", type="messages")
+        msg = gr.Textbox(label="Type your question")
+        clear = gr.Button("Clear Chat")
+        chat_output = gr.Textbox(label="Status", interactive=False)
+
+        def user_message(user_msg, history):
+            if not user_msg:
+                return [], [], "⚠️ لطفاً یک سوال وارد کنید."
+            history = history or []
+            history.append({"role": "user", "content": user_msg})
+            return history, history, ""
+
+        msg.submit(user_message, [msg, chatbot], [chatbot, chatbot, chat_output]).then(
+            chat_with_llm, chatbot, [chatbot, chat_output], queue=True
+        )
+        clear.click(lambda: ([], ""), None, [chatbot, chat_output])
+
+
 
 
 if __name__ == "__main__":
     try:
-        demo.launch()
+        import os
+
+        os.environ["NO_PROXY"] = "127.0.0.1,localhost"
+        os.environ["no_proxy"] = "127.0.0.1,localhost"
+
+        demo.launch(
+    server_name="0.0.0.0",
+    server_port=7860,
+    share=False,
+    show_api=False,
+    inbrowser=True  
+)
+
+
+
+
+
     finally:
         app.stop()

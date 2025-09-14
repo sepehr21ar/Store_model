@@ -162,11 +162,10 @@ class StoreManager:
             raise ValueError("❌ Quantity must be greater than 0.")
 
         query_insert = '''
-            INSERT INTO StoreSales (ProductID, Quantity, SaleDate)
-            VALUES (?, ?, ?)
-        '''
+    INSERT INTO StoreSales (ProductID, Quantity) VALUES (?, ?)
+'''
         try:
-            self.db.cursor.execute(query_insert, (product_id, quantity, datetime.now().isoformat()))
+            self.db.cursor.execute(query_insert, (product_id, quantity))
             self.db.commit()
             print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except sqlite3.Error as e:
@@ -197,13 +196,12 @@ class OnlineShopManager:
             raise ValueError("❌ Quantity must be greater than 0.")
 
         query_insert = '''
-            INSERT INTO OnlineSales (ProductID, Quantity, SaleDate)
-            VALUES (?, ?, ?)
-        '''
+    INSERT INTO OnlineSales (ProductID, Quantity) VALUES (?, ?)
+'''
         try:
-            self.db.cursor.execute(query_insert, (product_id, quantity, datetime.now().isoformat()))
+            self.db.cursor.execute(query_insert, (product_id, quantity))
             self.db.commit()
-            print(f"✅ Store sale recorded for ProductID {product_id}, Quantity: {quantity}")
+            print(f"✅ Online sale recorded for ProductID {product_id}, Quantity: {quantity}")
         except sqlite3.Error as e:
             print(f"❌ Error recording store sale: {e}")
             raise
