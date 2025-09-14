@@ -13,6 +13,9 @@
 
 It includes SQL **triggers** to automatically update inventory after sales, making it a reliable and efficient tool for small to medium-sized retail businesses.
 
+You can see MVP in there :
+https://huggingface.co/spaces/sepehr21ar/Store
+
 ## ✨ Features
 
 - **Product Management**: Add new products with names and prices  
