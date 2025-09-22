@@ -8,3 +8,5 @@
 [2025-09-14 16:49:40] OnlineSale: ID=2(Smartphone X) QTY=22
 [2025-09-14 16:49:50] OnlineSale: ID=5(backpag) QTY=2
 [2025-09-14 17:22:31] ProductDeactivated: ID=4
+[2025-09-22 22:02:03] OnlineSale: ID=3(Headphones) QTY=2
+[2025-09-22 22:02:06] StoreSale: ID=3(Headphones) QTY=4
