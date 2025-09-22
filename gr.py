@@ -256,15 +256,29 @@ with gr.Blocks(css="h1 {text-align: center;}") as demo:
 
         def user_message(user_msg, history):
             if not user_msg:
-                return [], [], "⚠️ لطفاً یک سوال وارد کنید."
+                # خروجی: [chatbot, chatbot, msg, chat_output]
+                return [], [], "", "⚠️ لطفاً یک سوال وارد کنید."
+            
             history = history or []
             history.append({"role": "user", "content": user_msg})
-            return history, history, ""
+            
+            # خروجی: [chatbot, chatbot, msg, chat_output]
+            return history, history, "", ""   # سوم msg خالی میشه، چهارم chat_output خالی
 
-        msg.submit(user_message, [msg, chatbot], [chatbot, chatbot, chat_output]).then(
-            chat_with_llm, chatbot, [chatbot, chat_output], queue=True
-        )
-        clear.click(lambda: ([], ""), None, [chatbot, chat_output])
+
+        msg.submit(
+        user_message,
+        [msg, chatbot],
+        [chatbot, chatbot, msg, chat_output]  # ۴ تا خروجی
+    ).then(
+        chat_with_llm,
+        chatbot,
+        [chatbot, chat_output],
+        queue=True
+    )
+
+        clear.click(lambda: ([], "", ""), None, [chatbot, msg, chat_output])
+
 
 
 
