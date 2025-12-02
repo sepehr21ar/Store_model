@@ -295,7 +295,7 @@ if __name__ == "__main__":
     server_port=7860,
     share=False,
     show_api=False,
-    inbrowser=True  
+    # inbrowser=True  
 )
 
 

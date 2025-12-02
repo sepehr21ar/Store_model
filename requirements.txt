@@ -1,0 +1,8 @@
+gradio==5.38.0
+pandas==2.3.2
+python-dotenv==1.1.1
+langchain==0.3.27
+langchain-community==0.3.29
+langchain-cohere==0.4.6
+langgraph==0.6.7
+SQLAlchemy==2.0.42

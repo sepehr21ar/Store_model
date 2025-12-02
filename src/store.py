@@ -306,73 +306,73 @@ class StoreApp:
                   f"Store Sales: {row[4]}, Online Sales: {row[5]}, "
                   f"Total Sales: {row[6]}, Status: {status}")
 
-    def run_interactive(self):
-        while True:
-            print("\n🛍️ Store Management Menu")
-            print("1. Add new product")
-            print("2. Add product to storage")
-            print("3. Delete product")
-            print("4. Record store sale")
-            print("5. Record online sale")
-            print("6. Show current inventory")
-            print("7. Show sales report")
-            print("8. Exit")
+    # def run_interactive(self):
+    #     while True:
+    #         print("\n🛍️ Store Management Menu")
+    #         print("1. Add new product")
+    #         print("2. Add product to storage")
+    #         print("3. Delete product")
+    #         print("4. Record store sale")
+    #         print("5. Record online sale")
+    #         print("6. Show current inventory")
+    #         print("7. Show sales report")
+    #         print("8. Exit")
 
-            choice = input("Enter your choice (1-8): ")
+    #         choice = input("Enter your choice (1-8): ")
 
-            try:
-                if choice == '1':
-                    name = input("Enter product name: ")
-                    price = float(input("Enter product price: "))
-                    product_id = self.add_new_product(name, price)
-                    print(f"✅ Product added with ProductID: {product_id}")
+    #         try:
+    #             if choice == '1':
+    #                 name = input("Enter product name: ")
+    #                 price = float(input("Enter product price: "))
+    #                 product_id = self.add_new_product(name, price)
+    #                 print(f"✅ Product added with ProductID: {product_id}")
 
-                elif choice == '2':
-                    product_id = int(input("Enter ProductID: "))
-                    if not self.store.check_product_exists(product_id):
-                        print(f"❌ Error: ProductID {product_id} does not exist.")
-                        continue
-                    quantity = int(input("Enter quantity to add: "))
-                    if quantity <= 0:
-                        print("❌ Quantity must be greater than 0.")
-                        continue
-                    self.add_product_to_inventory(product_id, quantity)
+    #             elif choice == '2':
+    #                 product_id = int(input("Enter ProductID: "))
+    #                 if not self.store.check_product_exists(product_id):
+    #                     print(f"❌ Error: ProductID {product_id} does not exist.")
+    #                     continue
+    #                 quantity = int(input("Enter quantity to add: "))
+    #                 if quantity <= 0:
+    #                     print("❌ Quantity must be greater than 0.")
+    #                     continue
+    #                 self.add_product_to_inventory(product_id, quantity)
 
-                elif choice == '3':
-                    product_id = int(input("Enter ProductID to delete: "))
-                    confirm = input(f"⚠️ Are you sure you want to deactivate ProductID {product_id}? (yes/no): ").strip().lower()
-                    if confirm == 'yes':
-                        self.storage.delete_product(product_id)
-                    else:
-                        print("❌ Deactivation cancelled.")
+    #             elif choice == '3':
+    #                 product_id = int(input("Enter ProductID to delete: "))
+    #                 confirm = input(f"⚠️ Are you sure you want to deactivate ProductID {product_id}? (yes/no): ").strip().lower()
+    #                 if confirm == 'yes':
+    #                     self.storage.delete_product(product_id)
+    #                 else:
+    #                     print("❌ Deactivation cancelled.")
 
-                elif choice == '4':
-                    product_id = int(input("Enter ProductID: "))
-                    quantity = int(input("Enter quantity sold (store): "))
-                    self.record_store_sale(product_id, quantity)
+    #             elif choice == '4':
+    #                 product_id = int(input("Enter ProductID: "))
+    #                 quantity = int(input("Enter quantity sold (store): "))
+    #                 self.record_store_sale(product_id, quantity)
 
-                elif choice == '5':
-                    product_id = int(input("Enter ProductID: "))
-                    quantity = int(input("Enter quantity sold (online): "))
-                    self.record_online_sale(product_id, quantity)
+    #             elif choice == '5':
+    #                 product_id = int(input("Enter ProductID: "))
+    #                 quantity = int(input("Enter quantity sold (online): "))
+    #                 self.record_online_sale(product_id, quantity)
 
-                elif choice == '6':
-                    self.display_inventory()
+    #             elif choice == '6':
+    #                 self.display_inventory()
 
-                elif choice == '7':
-                    self.display_sales_report()
+    #             elif choice == '7':
+    #                 self.display_sales_report()
 
-                elif choice == '8':
-                    print("👋 Exiting the program...")
-                    break
+    #             elif choice == '8':
+    #                 print("👋 Exiting the program...")
+    #                 break
 
-                else:
-                    print("❌ Invalid choice. Please enter a number between 1 and 8.")
+    #             else:
+    #                 print("❌ Invalid choice. Please enter a number between 1 and 8.")
 
-            except ValueError as e:
-                print(f"⚠️ Invalid input: {e}")
-            except Exception as e:
-                print(f"❌ Error: {e}")
+    #         except ValueError as e:
+    #             print(f"⚠️ Invalid input: {e}")
+    #         except Exception as e:
+    #             print(f"❌ Error: {e}")
 
 
 if __name__ == "__main__":
