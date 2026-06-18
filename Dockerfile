@@ -1,22 +1,24 @@
-FROM python:3.13.2-slim
+FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 
-ENV GRADIO_SERVER_NAME="0.0.0.0"
+RUN useradd -m -u 1000 user
 
-WORKDIR /app
+WORKDIR $HOME/app
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+COPY --chown=user requirements.txt .
 
-COPY requirements.txt .
+USER user
+
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install -r requirements.txt
 
-COPY src/ .
+COPY --chown=user . .
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "python init_db.py && python gr.py"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "7860"]

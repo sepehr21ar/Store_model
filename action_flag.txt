@@ -10,3 +10,8 @@
 [2025-09-14 17:22:31] ProductDeactivated: ID=4
 [2025-09-22 22:02:03] OnlineSale: ID=3(Headphones) QTY=2
 [2025-09-22 22:02:06] StoreSale: ID=3(Headphones) QTY=4
+[2026-06-18 19:08:42] ProductAdded: ID=5 Name=Test Product
+[2026-06-18 19:08:42] InventoryUpdated: ID=5(Test Product) QTY=5
+[2026-06-18 19:09:00] ProductAdded: ID=5 Name=Test Product
+[2026-06-18 19:09:00] InventoryUpdated: ID=5(Test Product) QTY=5
+[2026-06-18 19:24:58] InventoryUpdated: ID=2(Smartphone X) QTY=3

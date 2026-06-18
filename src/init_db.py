@@ -1,40 +1,38 @@
 import sqlite3
 from pathlib import Path
 
-def initialize_database(db_path='store.db', schema_file='store_schema.sql'):
-    """راه‌اندازی اولیه دیتابیس و ایجاد ساختارها"""
-    
-    # بررسی وجود فایل دیتابیس
-    db_exists = Path(db_path).exists()
-    
+
+def initialize_database(db_path="store.db", schema_file="store_schema.sql"):
+    """Create and seed the SQLite database when it does not exist."""
+    db_path = Path(db_path)
+    schema_file = Path(schema_file)
+    db_exists = db_path.exists()
+    conn = None
+
     try:
-        # اتصال به دیتابیس (اگر وجود نداشته باشد، ساخته می‌شود)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
-        # فعال کردن محدودیت‌های کلید خارجی
         cursor.execute("PRAGMA foreign_keys = ON")
-        
+
         if not db_exists:
-            print("🔹 ایجاد دیتابیس جدید...")
-            # خواندن فایل اسکریپت SQL
-            with open(schema_file, 'r', encoding='utf-8') as f:
-                schema_script = f.read()
-            
-            # اجرای اسکریپت SQL
+            with schema_file.open("r", encoding="utf-8") as file:
+                schema_script = file.read()
+
             cursor.executescript(schema_script)
             conn.commit()
-            print("✅ دیتابیس با موفقیت ایجاد و مقداردهی اولیه شد.")
+            print(f"Created database at {db_path}.")
         else:
-            print("🔹 دیتابیس از قبل وجود دارد. فقط اتصال برقرار شد.")
-            
-    except sqlite3.Error as e:
-        print(f"❌ خطا در ایجاد دیتابیس: {e}")
+            print(f"Using existing database at {db_path}.")
+
+    except sqlite3.Error as exc:
+        print(f"Database initialization error: {exc}")
+        raise
     finally:
         if conn:
             conn.close()
 
+
 if __name__ == "__main__":
-    print("📦 در حال راه‌اندازی سیستم مدیریت فروشگاه...")
-    initialize_database()
-    print("✨ عملیات با موفقیت انجام شد. دیتابیس آماده استفاده است.")
+    base_dir = Path(__file__).resolve().parent
+    initialize_database(base_dir / "store.db", base_dir / "store_schema.sql")

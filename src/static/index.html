@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Store Management</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <div class="brand">
+          <span class="brand-mark">SM</span>
+          <div>
+            <strong>Store</strong>
+            <span>Control</span>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Sections">
+          <button class="nav-item active" data-view="overview" type="button">
+            <span class="nav-icon">01</span>
+            <span>Overview</span>
+          </button>
+          <button class="nav-item" data-view="products" type="button">
+            <span class="nav-icon">02</span>
+            <span>Products</span>
+          </button>
+          <button class="nav-item" data-view="inventory" type="button">
+            <span class="nav-icon">03</span>
+            <span>Inventory</span>
+          </button>
+          <button class="nav-item" data-view="sales" type="button">
+            <span class="nav-icon">04</span>
+            <span>Sales</span>
+          </button>
+          <button class="nav-item" data-view="reports" type="button">
+            <span class="nav-icon">05</span>
+            <span>Reports</span>
+          </button>
+          <button class="nav-item" data-view="assistant" type="button">
+            <span class="nav-icon">06</span>
+            <span>Assistant</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">SQLite operations</p>
+            <h1 id="view-title">Overview</h1>
+          </div>
+          <button class="icon-button" id="refresh-btn" type="button" title="Refresh data" aria-label="Refresh data">
+            <span>Refresh</span>
+          </button>
+        </header>
+
+        <section class="view active" id="overview-view" aria-labelledby="overview-heading">
+          <h2 id="overview-heading" class="sr-only">Overview</h2>
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Total products</span>
+              <strong data-metric="total_products">0</strong>
+            </article>
+            <article class="metric">
+              <span>Active products</span>
+              <strong data-metric="active_products">0</strong>
+            </article>
+            <article class="metric">
+              <span>Inventory units</span>
+              <strong data-metric="inventory_units">0</strong>
+            </article>
+            <article class="metric">
+              <span>Inventory value</span>
+              <strong data-metric="inventory_value">$0.00</strong>
+            </article>
+            <article class="metric">
+              <span>Store sales</span>
+              <strong data-metric="store_sales">0</strong>
+            </article>
+            <article class="metric">
+              <span>Online sales</span>
+              <strong data-metric="online_sales">0</strong>
+            </article>
+          </div>
+
+          <div class="table-panel">
+            <div class="panel-heading">
+              <h2>Current Inventory</h2>
+              <span id="inventory-count">0 items</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="overview-inventory-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view two-column" id="products-view" aria-labelledby="products-heading">
+          <div class="form-panel">
+            <h2 id="products-heading">Add Product</h2>
+            <form id="product-form" class="form-stack">
+              <label>
+                <span>Name</span>
+                <input name="name" type="text" autocomplete="off" required />
+              </label>
+              <label>
+                <span>Price</span>
+                <input name="price" type="number" min="0.01" step="0.01" required />
+              </label>
+              <button class="primary-button" type="submit">Add Product</button>
+            </form>
+          </div>
+
+          <div class="form-panel">
+            <h2>Product Status</h2>
+            <form id="status-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Status</span>
+                <select name="active">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </label>
+              <button class="secondary-button" type="submit">Update Status</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="view two-column" id="inventory-view" aria-labelledby="inventory-heading">
+          <div class="form-panel">
+            <h2 id="inventory-heading">Add Inventory</h2>
+            <form id="inventory-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Quantity</span>
+                <input name="quantity" type="number" min="1" step="1" required />
+              </label>
+              <button class="primary-button" type="submit">Add Inventory</button>
+            </form>
+          </div>
+          <div class="table-panel compact">
+            <div class="panel-heading">
+              <h2>Stock Levels</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Qty</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view two-column" id="sales-view" aria-labelledby="sales-heading">
+          <div class="form-panel">
+            <h2 id="sales-heading">Store Sale</h2>
+            <form id="store-sale-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Quantity</span>
+                <input name="quantity" type="number" min="1" step="1" required />
+              </label>
+              <button class="primary-button" type="submit">Record Store Sale</button>
+            </form>
+          </div>
+
+          <div class="form-panel">
+            <h2>Online Sale</h2>
+            <form id="online-sale-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Quantity</span>
+                <input name="quantity" type="number" min="1" step="1" required />
+              </label>
+              <button class="secondary-button" type="submit">Record Online Sale</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="reports-view" aria-labelledby="reports-heading">
+          <div class="table-panel">
+            <div class="panel-heading">
+              <h2 id="reports-heading">Sales Report</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Inventory</th>
+                    <th>Store</th>
+                    <th>Online</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="report-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="assistant-view" aria-labelledby="assistant-heading">
+          <div class="assistant-panel">
+            <div class="panel-heading">
+              <h2 id="assistant-heading">Database Assistant</h2>
+              <span id="chat-status">Idle</span>
+            </div>
+            <div class="chat-log" id="chat-log" aria-live="polite"></div>
+            <form id="chat-form" class="chat-form">
+              <input name="message" type="text" autocomplete="off" required />
+              <button class="primary-button" type="submit">Send</button>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

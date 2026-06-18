@@ -4,7 +4,9 @@ __pycache__
 .env.example
 .git
 store.db
+*.db
 terminal output.txt
 Screenshot_15-10-2025_2288_huggingface.co.jpeg
-BOT.py
-action_flag
+action_flag.txt
+.venv
+venv
