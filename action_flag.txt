@@ -15,3 +15,5 @@
 [2026-06-18 19:09:00] ProductAdded: ID=5 Name=Test Product
 [2026-06-18 19:09:00] InventoryUpdated: ID=5(Test Product) QTY=5
 [2026-06-18 19:24:58] InventoryUpdated: ID=2(Smartphone X) QTY=3
+[2026-06-20 19:39:12] InventoryUpdated: ID=3(Headphones) QTY=5
+[2026-06-20 19:39:28] StoreSale: ID=3(Headphones) QTY=5

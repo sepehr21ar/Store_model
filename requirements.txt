@@ -1,8 +1,8 @@
-fastapi>=0.116,<1
-uvicorn[standard]>=0.35,<1
-python-dotenv==1.1.1
-langchain==0.3.27
-langchain-community==0.3.29
-langchain-cohere==0.4.6
-langgraph==0.6.7
-SQLAlchemy==2.0.42
+fastapi[standard]
+uvicorn[standard]
+python-dotenv
+langchain
+langchain-community
+langchain-cohere
+langgraph
+SQLAlchemy
