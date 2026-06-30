@@ -3,40 +3,24 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Generator, Literal
 
+import psycopg
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .init_db import initialize_database
+from .init_db import database_url, initialize_database
 from .store import StoreApp
 
 
 BASE_DIR = Path(__file__).resolve().parent
-ROOT_DIR = BASE_DIR.parent
-SCHEMA_PATH = BASE_DIR / "store_schema.sql"
+POSTGRES_SCHEMA_PATH = BASE_DIR / "store_schema_postgres.sql"
 STATIC_DIR = BASE_DIR / "static"
 
 
-def is_writable(path: Path) -> bool:
-    return path.exists() and os.access(path, os.W_OK)
-
-
-def default_db_path() -> Path:
-    data_dir = Path("/data")
-    if is_writable(data_dir):
-        return data_dir / "store.db"
-    return BASE_DIR / "store.db"
-
-
-DB_PATH = Path(os.getenv("STORE_DB_PATH", str(default_db_path())))
-ACTION_LOG_PATH = Path(
-    os.getenv(
-        "ACTION_LOG_PATH",
-        str((Path("/data") if is_writable(Path("/data")) else ROOT_DIR) / "action_flag.txt"),
-    )
-)
+load_dotenv()
 
 
 class ProductCreate(BaseModel):
@@ -65,16 +49,14 @@ class ChatRequest(BaseModel):
 
 
 def log_action(action: str) -> None:
-    ACTION_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    from datetime import datetime
-
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with ACTION_LOG_PATH.open("a", encoding="utf-8") as log_file:
-        log_file.write(f"[{timestamp}] {action}\n")
+    with psycopg.connect(database_url()) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO action_logs (action_text) VALUES (%s)", (action,))
+        conn.commit()
 
 
 def get_store() -> Generator[StoreApp, None, None]:
-    store_app = StoreApp(str(DB_PATH))
+    store_app = StoreApp(database_url())
     store_app.start()
     try:
         yield store_app
@@ -122,8 +104,7 @@ def handle_operation_error(exc: Exception) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    initialize_database(str(DB_PATH), str(SCHEMA_PATH))
+    initialize_database(POSTGRES_SCHEMA_PATH)
     yield
 
 
@@ -146,7 +127,7 @@ if cors_origins:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "database": str(DB_PATH)}
+    return {"status": "ok", "database": "postgresql"}
 
 
 @app.get("/api/dashboard")

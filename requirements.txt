@@ -6,3 +6,4 @@ langchain-community
 langchain-cohere
 langgraph
 SQLAlchemy
+psycopg[binary]

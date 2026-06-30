@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
@@ -14,20 +14,19 @@ class Product:
 
 
 class DatabaseConnection:
-    """Manages the SQLite database connection."""
+    """Manages the PostgreSQL database connection."""
 
-    def __init__(self, db_path: str = "store.db"):
-        self.db_path = db_path
-        self.conn: Optional[sqlite3.Connection] = None
-        self.cursor: Optional[sqlite3.Cursor] = None
+    def __init__(self, database_url: str):
+        self.database_url = database_url
+        self.conn: Optional[psycopg.Connection] = None
+        self.cursor: Optional[psycopg.Cursor] = None
 
     def connect(self) -> None:
         try:
-            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn = psycopg.connect(self.database_url)
             self.cursor = self.conn.cursor()
-            self.cursor.execute("PRAGMA foreign_keys = ON")
-            print("Successfully connected to SQLite database.")
-        except sqlite3.Error as exc:
+            print("Successfully connected to PostgreSQL database.")
+        except psycopg.Error as exc:
             print(f"Connection error: {exc}")
             raise
 
@@ -52,78 +51,76 @@ class StorageManager:
         self.db = db
 
     def add_product(self, product_id: int, quantity: int) -> None:
-        check_query = "SELECT 1 FROM Storage WHERE ProductID = ?"
-        self.db.cursor.execute(check_query, (product_id,))
-        exists = self.db.cursor.fetchone()
-
-        if exists:
-            update_query = "UPDATE Storage SET Quantity = Quantity + ? WHERE ProductID = ?"
-            self.db.cursor.execute(update_query, (quantity, product_id))
-        else:
-            insert_query = "INSERT INTO Storage (ProductID, Quantity) VALUES (?, ?)"
-            self.db.cursor.execute(insert_query, (product_id, quantity))
+        query = """
+            INSERT INTO storage (product_id, quantity)
+            VALUES (%s, %s)
+            ON CONFLICT (product_id)
+            DO UPDATE SET quantity = storage.quantity + EXCLUDED.quantity
+        """
+        self.db.cursor.execute(query, (product_id, quantity))
 
         self.db.commit()
         print(f"Added {quantity} units of ProductID {product_id} to Storage.")
 
     def get_inventory(self) -> List[Product]:
         query = """
-            SELECT p.ProductID, p.ProductName, p.Price, COALESCE(s.Quantity, 0) AS Quantity
-            FROM Products p
-            LEFT JOIN Storage s ON p.ProductID = s.ProductID
-            ORDER BY p.ProductID
+            SELECT p.product_id, p.product_name, p.price, COALESCE(s.quantity, 0) AS quantity
+            FROM products p
+            LEFT JOIN storage s ON p.product_id = s.product_id
+            ORDER BY p.product_id
         """
         try:
             self.db.cursor.execute(query)
             rows = self.db.cursor.fetchall()
             return [Product(row[0], row[1], row[2], row[3]) for row in rows]
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error retrieving inventory: {exc}")
             raise
 
     def add_new_product(self, name: str, price: float) -> int:
         query = """
-            INSERT INTO Products (ProductName, Price, Availability)
-            VALUES (?, ?, 1)
+            INSERT INTO products (product_name, price, availability)
+            VALUES (%s, %s, TRUE)
+            RETURNING product_id
         """
         try:
             self.db.cursor.execute(query, (name, price))
+            product_id = self.db.cursor.fetchone()[0]
             self.db.commit()
-            product_id = self.db.cursor.lastrowid
             print(f"Added new product: {name} with ID {product_id}.")
             return int(product_id)
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error adding new product: {exc}")
             raise
 
     def is_product_active(self, product_id: int) -> bool:
-        query = "SELECT Availability FROM Products WHERE ProductID = ?"
+        query = "SELECT availability FROM products WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
-        return bool(row and row[0] == 1)
+        return bool(row and row[0])
 
     def delete_product(self, product_id: int) -> None:
-        query = "UPDATE Products SET Availability = 0 WHERE ProductID = ?"
+        query = "UPDATE products SET availability = FALSE WHERE product_id = %s"
         try:
             self.db.cursor.execute(query, (product_id,))
             self.db.commit()
             print(f"ProductID {product_id} marked as inactive.")
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error deactivating product: {exc}")
             raise
 
     def activate_product(self, product_id: int) -> None:
-        query = "UPDATE Products SET Availability = 1 WHERE ProductID = ?"
+        query = "UPDATE products SET availability = TRUE WHERE product_id = %s"
         try:
             self.db.cursor.execute(query, (product_id,))
             self.db.commit()
             print(f"ProductID {product_id} marked as active.")
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error activating product: {exc}")
             raise
 
     def has_sufficient_quantity(self, product_id: int, quantity: int) -> bool:
-        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        query = "SELECT quantity FROM storage WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
         return bool(row and int(row[0]) >= quantity)
@@ -137,7 +134,7 @@ class StoreManager:
         self.storage = StorageManager(db)
 
     def check_product_exists(self, product_id: int) -> bool:
-        query = "SELECT 1 FROM Products WHERE ProductID = ?"
+        query = "SELECT 1 FROM products WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
 
@@ -148,7 +145,7 @@ class StoreManager:
         if not self.storage.is_product_active(product_id):
             raise ValueError(f"Product {product_id} is inactive and cannot be sold.")
 
-        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        query = "SELECT quantity FROM storage WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
         available_quantity = row[0] if row else 0
@@ -158,12 +155,12 @@ class StoreManager:
                 f"Insufficient stock in storage. Requested: {quantity}, Available: {available_quantity}."
             )
 
-        query_insert = "INSERT INTO StoreSales (ProductID, Quantity) VALUES (?, ?)"
+        query_insert = "INSERT INTO store_sales (product_id, quantity) VALUES (%s, %s)"
         try:
             self.db.cursor.execute(query_insert, (product_id, quantity))
             self.db.commit()
             print(f"Store sale recorded for ProductID {product_id}, Quantity: {quantity}.")
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error recording store sale: {exc}")
             raise
 
@@ -182,7 +179,7 @@ class OnlineShopManager:
         if not self.storage.is_product_active(product_id):
             raise ValueError(f"Product {product_id} is inactive and cannot be sold.")
 
-        query = "SELECT Quantity FROM Storage WHERE ProductID = ?"
+        query = "SELECT quantity FROM storage WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
         available_quantity = row[0] if row else 0
@@ -192,17 +189,17 @@ class OnlineShopManager:
                 f"Insufficient stock in storage. Requested: {quantity}, Available: {available_quantity}."
             )
 
-        query_insert = "INSERT INTO OnlineSales (ProductID, Quantity) VALUES (?, ?)"
+        query_insert = "INSERT INTO online_sales (product_id, quantity) VALUES (%s, %s)"
         try:
             self.db.cursor.execute(query_insert, (product_id, quantity))
             self.db.commit()
             print(f"Online sale recorded for ProductID {product_id}, Quantity: {quantity}.")
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error recording online sale: {exc}")
             raise
 
     def check_product_exists(self, product_id: int) -> bool:
-        query = "SELECT 1 FROM Products WHERE ProductID = ?"
+        query = "SELECT 1 FROM products WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
         return self.db.cursor.fetchone() is not None
 
@@ -216,23 +213,23 @@ class ReportManager:
     def get_sales_report(self) -> List[Tuple]:
         query = """
             SELECT
-                p.ProductID,
-                p.ProductName,
-                p.Price,
-                COALESCE(s.Quantity, 0) AS StorageQuantity,
-                COALESCE((SELECT SUM(ss.Quantity) FROM StoreSales ss WHERE ss.ProductID = p.ProductID), 0) AS StoreSalesQuantity,
-                COALESCE((SELECT SUM(os.Quantity) FROM OnlineSales os WHERE os.ProductID = p.ProductID), 0) AS OnlineSalesQuantity,
-                COALESCE((SELECT SUM(ss.Quantity) FROM StoreSales ss WHERE ss.ProductID = p.ProductID), 0) +
-                COALESCE((SELECT SUM(os.Quantity) FROM OnlineSales os WHERE os.ProductID = p.ProductID), 0) AS TotalSalesQuantity,
-                p.Availability
-            FROM Products p
-            LEFT JOIN Storage s ON p.ProductID = s.ProductID
-            ORDER BY p.ProductID
+                p.product_id,
+                p.product_name,
+                p.price,
+                COALESCE(s.quantity, 0) AS storage_quantity,
+                COALESCE((SELECT SUM(ss.quantity) FROM store_sales ss WHERE ss.product_id = p.product_id), 0) AS store_sales_quantity,
+                COALESCE((SELECT SUM(os.quantity) FROM online_sales os WHERE os.product_id = p.product_id), 0) AS online_sales_quantity,
+                COALESCE((SELECT SUM(ss.quantity) FROM store_sales ss WHERE ss.product_id = p.product_id), 0) +
+                COALESCE((SELECT SUM(os.quantity) FROM online_sales os WHERE os.product_id = p.product_id), 0) AS total_sales_quantity,
+                p.availability
+            FROM products p
+            LEFT JOIN storage s ON p.product_id = s.product_id
+            ORDER BY p.product_id
         """
         try:
             self.db.cursor.execute(query)
             return self.db.cursor.fetchall()
-        except sqlite3.Error as exc:
+        except psycopg.Error as exc:
             print(f"Error generating sales report: {exc}")
             raise
 
@@ -240,8 +237,8 @@ class ReportManager:
 class StoreApp:
     """Coordinates storage, sales, online shop, and reporting operations."""
 
-    def __init__(self, db_path: str = "store.db"):
-        self.db = DatabaseConnection(db_path)
+    def __init__(self, database_url: str):
+        self.db = DatabaseConnection(database_url)
         self.storage = StorageManager(self.db)
         self.store = StoreManager(self.db)
         self.online_shop = OnlineShopManager(self.db)
@@ -292,7 +289,9 @@ class StoreApp:
 
 
 if __name__ == "__main__":
-    app = StoreApp("store.db")
+    from src.init_db import database_url
+
+    app = StoreApp(database_url())
     try:
         app.start()
         app.display_inventory()

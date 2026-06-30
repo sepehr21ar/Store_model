@@ -1,38 +1,31 @@
-import sqlite3
+import os
 from pathlib import Path
 
+import psycopg
+from dotenv import load_dotenv
 
-def initialize_database(db_path="store.db", schema_file="store_schema.sql"):
-    """Create and seed the SQLite database when it does not exist."""
-    db_path = Path(db_path)
-    schema_file = Path(schema_file)
-    db_exists = db_path.exists()
-    conn = None
 
-    try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA foreign_keys = ON")
+def database_url() -> str:
+    load_dotenv()
+    url = os.getenv("DATABASE_URL", "").strip()
+    if not url:
+        raise RuntimeError("DATABASE_URL is not configured.")
+    return url
 
-        if not db_exists:
-            with schema_file.open("r", encoding="utf-8") as file:
-                schema_script = file.read()
 
-            cursor.executescript(schema_script)
-            conn.commit()
-            print(f"Created database at {db_path}.")
-        else:
-            print(f"Using existing database at {db_path}.")
+def initialize_database(schema_file: str | Path) -> None:
+    """Create PostgreSQL tables, constraints, triggers, and seed data."""
+    schema_path = Path(schema_file)
+    schema_script = schema_path.read_text(encoding="utf-8")
 
-    except sqlite3.Error as exc:
-        print(f"Database initialization error: {exc}")
-        raise
-    finally:
-        if conn:
-            conn.close()
+    with psycopg.connect(database_url()) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(schema_script)
+        conn.commit()
+
+    print("PostgreSQL database initialized.")
 
 
 if __name__ == "__main__":
     base_dir = Path(__file__).resolve().parent
-    initialize_database(base_dir / "store.db", base_dir / "store_schema.sql")
+    initialize_database(base_dir / "store_schema_postgres.sql")
