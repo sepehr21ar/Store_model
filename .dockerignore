@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.env
+.env.example
+.git
+store.db
+*.db
+terminal output.txt
+Screenshot_15-10-2025_2288_huggingface.co.jpeg
+action_flag.txt
+.venv
+venv
