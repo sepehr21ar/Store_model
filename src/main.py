@@ -56,6 +56,7 @@ class ProductStatusUpdate(BaseModel):
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str = Field(min_length=1)
+    visuals: list[dict] = Field(default_factory=list)
 
 
 class ChatRequest(BaseModel):
@@ -265,8 +266,8 @@ def chat(payload: ChatRequest) -> dict:
     try:
         from .llm_sql import chat_with_llm
 
-        messages, status = chat_with_llm(history)
-        return {"messages": messages, "status": status}
+        messages, status, visuals = chat_with_llm(history)
+        return {"messages": messages, "status": status, "visuals": visuals}
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:

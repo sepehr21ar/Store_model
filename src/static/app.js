@@ -9,6 +9,8 @@ const formatter = new Intl.NumberFormat("en-US", {
   currency: "USD"
 });
 
+const chartColors = ["#0f766e", "#2563eb", "#d97706", "#7c3aed"];
+
 const viewTitles = {
   overview: "Overview",
   products: "Products",
@@ -78,6 +80,116 @@ function emptyRow(colspan, label) {
   return `<tr><td colspan="${colspan}">${label}</td></tr>`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatChartValue(value, unit) {
+  return unit === "USD" ? formatter.format(value) : Number(value).toLocaleString("en-US");
+}
+
+function shortLabel(label) {
+  const value = String(label);
+  return value.length > 14 ? `${value.slice(0, 12)}...` : value;
+}
+
+function renderBarChart(svg, chart) {
+  if (!svg) return;
+
+  const labels = chart.labels || [];
+  const series = chart.series || [];
+  const values = series.flatMap((item) => item.values || []);
+  const maxValue = Math.max(...values, 0);
+
+  svg.setAttribute("viewBox", "0 0 760 300");
+  svg.innerHTML = "";
+
+  if (!labels.length || !series.length || maxValue <= 0) {
+    svg.innerHTML = `
+      <text x="380" y="145" text-anchor="middle" class="chart-empty">No chart data yet</text>
+    `;
+    return;
+  }
+
+  const width = 760;
+  const height = 300;
+  const left = 46;
+  const right = 22;
+  const top = 30;
+  const bottom = 62;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const groupWidth = plotWidth / labels.length;
+  const barGap = 5;
+  const barWidth = Math.max(8, Math.min(28, (groupWidth - 18) / series.length - barGap));
+  const niceMax = maxValue || 1;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+    const y = top + plotHeight - ratio * plotHeight;
+    const value = niceMax * ratio;
+    return `
+      <line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="chart-grid"></line>
+      <text x="${left - 10}" y="${y + 4}" text-anchor="end" class="chart-axis">${formatChartValue(value, chart.unit)}</text>
+    `;
+  }).join("");
+
+  const bars = labels.map((label, labelIndex) => {
+    const groupCenter = left + groupWidth * labelIndex + groupWidth / 2;
+    const groupStart = groupCenter - ((barWidth + barGap) * series.length - barGap) / 2;
+    const labelText = escapeHtml(shortLabel(label));
+    const barNodes = series.map((item, seriesIndex) => {
+      const value = Number(item.values[labelIndex] || 0);
+      const barHeight = value / niceMax * plotHeight;
+      const x = groupStart + seriesIndex * (barWidth + barGap);
+      const y = top + plotHeight - barHeight;
+      const color = chartColors[seriesIndex % chartColors.length];
+      return `
+        <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="${color}">
+          <title>${escapeHtml(item.name)}: ${formatChartValue(value, chart.unit)}</title>
+        </rect>
+      `;
+    }).join("");
+
+    return `
+      ${barNodes}
+      <text x="${groupCenter}" y="${height - 30}" text-anchor="middle" class="chart-label">${labelText}</text>
+    `;
+  }).join("");
+
+  const legend = series.map((item, index) => `
+    <g transform="translate(${left + index * 118}, 10)">
+      <rect width="10" height="10" rx="2" fill="${chartColors[index % chartColors.length]}"></rect>
+      <text x="16" y="10" class="chart-legend">${escapeHtml(item.name)}</text>
+    </g>
+  `).join("");
+
+  svg.innerHTML = `${legend}${gridLines}${bars}`;
+}
+
+function renderReportCharts(items) {
+  renderBarChart(qs("#sales-chart"), {
+    unit: "units",
+    labels: items.map((item) => item.name),
+    series: [
+      { name: "Store", values: items.map((item) => item.store_sales) },
+      { name: "Online", values: items.map((item) => item.online_sales) }
+    ]
+  });
+
+  renderBarChart(qs("#inventory-chart"), {
+    unit: "units",
+    labels: items.map((item) => item.name),
+    series: [
+      { name: "Inventory", values: items.map((item) => item.inventory) }
+    ]
+  });
+}
+
 function renderInventoryTable(selector, items, compact = false) {
   const body = qs(selector);
   if (!items.length) {
@@ -126,6 +238,17 @@ function renderReport(items) {
   `).join("");
 }
 
+function visualHtml(visual) {
+  const id = `chart-${Math.random().toString(36).slice(2)}`;
+  window.requestAnimationFrame(() => renderBarChart(qs(`#${id}`), visual));
+  return `
+    <div class="message-chart">
+      <div class="message-chart-title">${escapeHtml(visual.title || "Chart")}</div>
+      <svg id="${id}" class="chart small-chart" role="img" aria-label="${escapeHtml(visual.title || "Assistant chart")}"></svg>
+    </div>
+  `;
+}
+
 function renderMetrics(metrics) {
   Object.entries(metrics).forEach(([key, value]) => {
     const node = qs(`[data-metric="${key}"]`);
@@ -148,6 +271,7 @@ async function loadData(showToast = false) {
   renderInventoryTable("#overview-inventory-body", state.inventory);
   renderInventoryTable("#inventory-body", state.inventory, true);
   renderReport(state.report);
+  renderReportCharts(state.report);
 
   qs("#inventory-count").textContent = `${inventory.count} item${inventory.count === 1 ? "" : "s"}`;
   if (showToast) toast("Data refreshed.");
@@ -272,7 +396,12 @@ function renderChat() {
 
   log.innerHTML = state.chat
     .filter((message) => message.role !== "system")
-    .map((message) => `<div class="chat-message ${message.role}">${message.content}</div>`)
+    .map((message) => `
+      <div class="chat-message ${message.role}">
+        <div>${escapeHtml(message.content)}</div>
+        ${(message.visuals || []).map(visualHtml).join("")}
+      </div>
+    `)
     .join("");
   log.scrollTop = log.scrollHeight;
 }

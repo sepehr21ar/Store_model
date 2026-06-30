@@ -179,7 +179,8 @@ h2 {
 .metric,
 .form-panel,
 .table-panel,
-.assistant-panel {
+.assistant-panel,
+.chart-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -205,8 +206,46 @@ h2 {
 
 .form-panel,
 .table-panel,
-.assistant-panel {
+.assistant-panel,
+.chart-panel {
   padding: 20px;
+}
+
+.report-visuals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.chart-frame {
+  width: 100%;
+  min-height: 300px;
+  overflow-x: auto;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  height: 300px;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-axis,
+.chart-label,
+.chart-legend,
+.chart-empty {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.chart-label {
+  font-weight: 650;
 }
 
 .table-panel.compact {
@@ -369,6 +408,7 @@ tbody tr:hover {
   border-radius: 8px;
   background: #edf2f7;
   line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .chat-message.user {
@@ -378,6 +418,28 @@ tbody tr:hover {
 
 .chat-message.assistant {
   justify-self: start;
+}
+
+.message-chart {
+  width: min(620px, 100%);
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  white-space: normal;
+}
+
+.message-chart-title {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.small-chart {
+  min-width: 360px;
+  height: 230px;
 }
 
 .chat-form {
@@ -461,7 +523,8 @@ tbody tr:hover {
   }
 
   .two-column.active,
-  .metric-grid {
+  .metric-grid,
+  .report-visuals {
     grid-template-columns: 1fr;
   }
 
