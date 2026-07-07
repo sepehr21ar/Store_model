@@ -15,8 +15,9 @@ The app is prepared for Docker and Hugging Face Spaces. It listens on port `7860
 ## Features
 
 - Dashboard with product, inventory, sales, and inventory value metrics.
-- Product creation and active/inactive status management.
-- Inventory updates by product ID.
+- Full product CRUD with active/inactive status management.
+- Inventory add, set, list, and remove actions by product ID.
+- Product IDs are resequenced after a permanent product delete so remaining products stay ordered.
 - Store sale and online sale recording.
 - PostgreSQL trigger-based stock deduction when sales are recorded.
 - Sales and inventory reports with browser-rendered charts.
@@ -81,8 +82,15 @@ Notes:
 
 Install dependencies:
 
+Install dependencies:
+
 ```bash
 pip install -r requirements.txt
+```
+
+Start the app:
+
+```bash
 ```
 
 Start the app:
@@ -91,6 +99,17 @@ Start the app:
 uvicorn src.main:app --host 0.0.0.0 --port 7860
 ```
 
+Open:
+
+```text
+http://localhost:7860
+```
+
+Health check:
+
+```text
+http://localhost:7860/api/health
+```
 Open:
 
 ```text
@@ -114,6 +133,17 @@ The Dockerfile:
 - Starts `uvicorn src.main:app` on `0.0.0.0:7860`.
 
 Build the image:
+## Run With Docker
+
+The Dockerfile:
+
+- Uses `python:3.12-slim`.
+- Installs packages from `requirements.txt`.
+- Copies the application into `/home/user/app`.
+- Runs as a non-root user.
+- Starts `uvicorn src.main:app` on `0.0.0.0:7860`.
+
+Build the image:
 
 ```bash
 docker build -t store-management .
@@ -125,6 +155,25 @@ Run the container with your environment file:
 docker run --rm --env-file .env -p 7860:7860 store-management
 ```
 
+Run the container with your environment file:
+
+```bash
+docker run --rm --env-file .env -p 7860:7860 store-management
+```
+
+Open:
+
+```text
+http://localhost:7860
+```
+
+Important: this Docker image runs the FastAPI app only. PostgreSQL must be reachable through `DATABASE_URL`; the container does not start a local Postgres service.
+
+The `.dockerignore` file excludes `.env`, so secrets are not copied into the image. Pass them at runtime with `--env-file .env` locally, or configure them as platform secrets in production.
+
+## Hugging Face Spaces
+
+This repository includes Hugging Face Spaces front matter for Docker:
 Open:
 
 ```text
@@ -179,10 +228,15 @@ Seed data is inserted for four sample products:
 | `GET` | `/api/health` | Check API and database mode. |
 | `GET` | `/api/dashboard` | Summary metrics for the dashboard. |
 | `GET` | `/api/products` | List products with inventory and sales totals. |
+| `GET` | `/api/products/{product_id}` | Get one product with inventory and sales totals. |
 | `POST` | `/api/products` | Create a new product. |
+| `PUT` | `/api/products/{product_id}` | Update a product name and price. |
 | `PATCH` | `/api/products/{product_id}/status` | Activate or deactivate a product. |
+| `DELETE` | `/api/products/{product_id}` | Permanently delete a product, related rows, and resequence remaining product IDs. |
 | `GET` | `/api/inventory` | List inventory quantities. |
 | `POST` | `/api/inventory` | Add stock for a product. |
+| `PUT` | `/api/inventory` | Set a product stock quantity exactly. |
+| `DELETE` | `/api/inventory/{product_id}` | Remove a product stock row. |
 | `POST` | `/api/sales/store` | Record a physical store sale. |
 | `POST` | `/api/sales/online` | Record an online sale. |
 | `GET` | `/api/reports/sales` | Get sales and inventory report rows. |

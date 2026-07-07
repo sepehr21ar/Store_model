@@ -31,6 +31,69 @@ CREATE TABLE IF NOT EXISTS action_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.referential_constraints
+        WHERE constraint_name = 'storage_product_id_fkey'
+          AND update_rule = 'CASCADE'
+          AND delete_rule = 'CASCADE'
+    ) THEN
+        ALTER TABLE storage DROP CONSTRAINT IF EXISTS storage_product_id_fkey;
+        ALTER TABLE storage
+        ADD CONSTRAINT storage_product_id_fkey
+        FOREIGN KEY (product_id)
+        REFERENCES products(product_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID;
+    END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.referential_constraints
+        WHERE constraint_name = 'store_sales_product_id_fkey'
+          AND update_rule = 'CASCADE'
+          AND delete_rule = 'CASCADE'
+    ) THEN
+        ALTER TABLE store_sales DROP CONSTRAINT IF EXISTS store_sales_product_id_fkey;
+        ALTER TABLE store_sales
+        ADD CONSTRAINT store_sales_product_id_fkey
+        FOREIGN KEY (product_id)
+        REFERENCES products(product_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID;
+    END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.referential_constraints
+        WHERE constraint_name = 'online_sales_product_id_fkey'
+          AND update_rule = 'CASCADE'
+          AND delete_rule = 'CASCADE'
+    ) THEN
+        ALTER TABLE online_sales DROP CONSTRAINT IF EXISTS online_sales_product_id_fkey;
+        ALTER TABLE online_sales
+        ADD CONSTRAINT online_sales_product_id_fkey
+        FOREIGN KEY (product_id)
+        REFERENCES products(product_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID;
+    END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION validate_and_apply_sale()
 RETURNS TRIGGER AS $$
 DECLARE

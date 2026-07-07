@@ -169,6 +169,19 @@ h2 {
   display: grid;
 }
 
+.crud-layout {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.crud-layout.active {
+  display: grid;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(130px, 1fr));
@@ -335,6 +348,30 @@ select:focus {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text);
+}
+
+.table-action {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.table-action:hover {
+  background: var(--surface-2);
+}
+
+.table-action.danger {
+  border-color: #fecaca;
+  color: var(--red);
+}
+
+td .table-action + .table-action {
+  margin-left: 6px;
 }
 
 .table-wrap {
@@ -523,6 +560,7 @@ tbody tr:hover {
   }
 
   .two-column.active,
+  .crud-layout.active,
   .metric-grid,
   .report-visuals {
     grid-template-columns: 1fr;
