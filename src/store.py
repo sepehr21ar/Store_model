@@ -93,6 +93,20 @@ class StorageManager:
             print(f"Error adding new product: {exc}")
             raise
 
+    def update_product(self, product_id: int, name: str, price: float) -> None:
+        query = """
+            UPDATE products
+            SET product_name = %s, price = %s
+            WHERE product_id = %s
+        """
+        try:
+            self.db.cursor.execute(query, (name, price, product_id))
+            self.db.commit()
+            print(f"Updated ProductID {product_id}.")
+        except psycopg.Error as exc:
+            print(f"Error updating product: {exc}")
+            raise
+
     def is_product_active(self, product_id: int) -> bool:
         query = "SELECT availability FROM products WHERE product_id = %s"
         self.db.cursor.execute(query, (product_id,))
@@ -109,6 +123,63 @@ class StorageManager:
             print(f"Error deactivating product: {exc}")
             raise
 
+    def hard_delete_product(self, product_id: int) -> None:
+        try:
+            self.db.cursor.execute("DELETE FROM products WHERE product_id = %s", (product_id,))
+            self._resequence_product_ids()
+            self.db.commit()
+            print(f"ProductID {product_id} permanently deleted and product IDs resequenced.")
+        except psycopg.Error as exc:
+            if self.db.conn:
+                self.db.conn.rollback()
+            print(f"Error deleting product: {exc}")
+            raise
+
+    def _resequence_product_ids(self) -> None:
+        self.db.cursor.execute(
+            """
+            CREATE TEMP TABLE product_id_resequence (
+                old_id INTEGER PRIMARY KEY,
+                new_id INTEGER NOT NULL
+            ) ON COMMIT DROP
+            """
+        )
+        self.db.cursor.execute(
+            """
+            INSERT INTO product_id_resequence (old_id, new_id)
+            SELECT product_id, ROW_NUMBER() OVER (ORDER BY product_id)
+            FROM products
+            """
+        )
+        self.db.cursor.execute(
+            """
+            UPDATE products p
+            SET product_id = m.new_id + 1000000
+            FROM product_id_resequence m
+            WHERE p.product_id = m.old_id
+              AND m.old_id <> m.new_id
+            """
+        )
+        self.db.cursor.execute(
+            """
+            UPDATE products p
+            SET product_id = m.new_id
+            FROM product_id_resequence m
+            WHERE p.product_id = m.new_id + 1000000
+              AND m.old_id <> m.new_id
+            """
+        )
+        self.db.cursor.execute("DROP TABLE product_id_resequence")
+        self.db.cursor.execute(
+            """
+            SELECT setval(
+                pg_get_serial_sequence('products', 'product_id'),
+                COALESCE((SELECT MAX(product_id) FROM products), 1),
+                EXISTS (SELECT 1 FROM products)
+            )
+            """
+        )
+
     def activate_product(self, product_id: int) -> None:
         query = "UPDATE products SET availability = TRUE WHERE product_id = %s"
         try:
@@ -124,6 +195,24 @@ class StorageManager:
         self.db.cursor.execute(query, (product_id,))
         row = self.db.cursor.fetchone()
         return bool(row and int(row[0]) >= quantity)
+
+    def set_inventory_quantity(self, product_id: int, quantity: int) -> None:
+        try:
+            if quantity == 0:
+                self.db.cursor.execute("DELETE FROM storage WHERE product_id = %s", (product_id,))
+            else:
+                query = """
+                    INSERT INTO storage (product_id, quantity)
+                    VALUES (%s, %s)
+                    ON CONFLICT (product_id)
+                    DO UPDATE SET quantity = EXCLUDED.quantity
+                """
+                self.db.cursor.execute(query, (product_id, quantity))
+            self.db.commit()
+            print(f"Set ProductID {product_id} inventory to {quantity}.")
+        except psycopg.Error as exc:
+            print(f"Error setting inventory quantity: {exc}")
+            raise
 
 
 class StoreManager:
@@ -262,6 +351,15 @@ class StoreApp:
 
     def add_new_product(self, name: str, price: float) -> int:
         return self.storage.add_new_product(name, price)
+
+    def update_product(self, product_id: int, name: str, price: float) -> None:
+        self.storage.update_product(product_id, name, price)
+
+    def delete_product(self, product_id: int) -> None:
+        self.storage.hard_delete_product(product_id)
+
+    def set_inventory_quantity(self, product_id: int, quantity: int) -> None:
+        self.storage.set_inventory_quantity(product_id, quantity)
 
     def record_store_sale(self, product_id: int, quantity: int) -> None:
         self.store.record_sale(product_id, quantity)

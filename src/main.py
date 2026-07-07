@@ -28,9 +28,19 @@ class ProductCreate(BaseModel):
     price: float = Field(gt=0)
 
 
+class ProductUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    price: float = Field(gt=0)
+
+
 class QuantityChange(BaseModel):
     product_id: int = Field(gt=0)
     quantity: int = Field(gt=0)
+
+
+class InventoryUpdate(BaseModel):
+    product_id: int = Field(gt=0)
+    quantity: int = Field(ge=0)
 
 
 class ProductStatusUpdate(BaseModel):
@@ -155,12 +165,42 @@ def list_products(store_app: StoreApp = Depends(get_store)) -> dict:
     return {"items": items, "count": len(items)}
 
 
+@app.get("/api/products/{product_id}")
+def get_product(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
+    ensure_product_exists(store_app, product_id)
+    for row in get_report_rows(store_app):
+        if row[0] == product_id:
+            return {"item": report_row_to_dict(row)}
+    raise HTTPException(status_code=404, detail=f"Product {product_id} was not found.")
+
+
 @app.post("/api/products", status_code=201)
 def create_product(payload: ProductCreate, store_app: StoreApp = Depends(get_store)) -> dict:
     try:
-        product_id = store_app.add_new_product(payload.name.strip(), payload.price)
-        log_action(f"ProductAdded: ID={product_id} Name={payload.name.strip()}")
+        name = payload.name.strip()
+        if not name:
+            raise ValueError("Product name cannot be blank.")
+        product_id = store_app.add_new_product(name, payload.price)
+        log_action(f"ProductAdded: ID={product_id} Name={name}")
         return {"message": "Product added.", "product_id": product_id}
+    except Exception as exc:
+        handle_operation_error(exc)
+
+
+@app.put("/api/products/{product_id}")
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    store_app: StoreApp = Depends(get_store),
+) -> dict:
+    ensure_product_exists(store_app, product_id)
+    try:
+        name = payload.name.strip()
+        if not name:
+            raise ValueError("Product name cannot be blank.")
+        store_app.update_product(product_id, name, payload.price)
+        log_action(f"ProductUpdated: ID={product_id} Name={name}")
+        return {"message": "Product updated.", "product_id": product_id}
     except Exception as exc:
         handle_operation_error(exc)
 
@@ -188,6 +228,19 @@ def update_product_status(
         handle_operation_error(exc)
 
 
+@app.delete("/api/products/{product_id}")
+def delete_product(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
+    ensure_product_exists(store_app, product_id)
+    product = store_app.get_product_by_id(product_id)
+    product_name = product.name if product else "Unknown"
+    try:
+        store_app.delete_product(product_id)
+        log_action(f"ProductDeleted: ID={product_id}({product_name})")
+        return {"message": "Product deleted.", "product_id": product_id}
+    except Exception as exc:
+        handle_operation_error(exc)
+
+
 @app.get("/api/inventory")
 def list_inventory(store_app: StoreApp = Depends(get_store)) -> dict:
     items = [inventory_row_to_dict(row) for row in get_report_rows(store_app)]
@@ -203,6 +256,32 @@ def add_inventory(payload: QuantityChange, store_app: StoreApp = Depends(get_sto
         product_name = product.name if product else "Unknown"
         log_action(f"InventoryUpdated: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
         return {"message": "Inventory updated.", "product_id": payload.product_id, "quantity": payload.quantity}
+    except Exception as exc:
+        handle_operation_error(exc)
+
+
+@app.put("/api/inventory")
+def set_inventory(payload: InventoryUpdate, store_app: StoreApp = Depends(get_store)) -> dict:
+    ensure_product_exists(store_app, payload.product_id)
+    try:
+        store_app.set_inventory_quantity(payload.product_id, payload.quantity)
+        product = store_app.get_product_by_id(payload.product_id)
+        product_name = product.name if product else "Unknown"
+        log_action(f"InventorySet: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
+        return {"message": "Inventory quantity set.", "product_id": payload.product_id, "quantity": payload.quantity}
+    except Exception as exc:
+        handle_operation_error(exc)
+
+
+@app.delete("/api/inventory/{product_id}")
+def delete_inventory(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
+    ensure_product_exists(store_app, product_id)
+    product = store_app.get_product_by_id(product_id)
+    product_name = product.name if product else "Unknown"
+    try:
+        store_app.set_inventory_quantity(product_id, 0)
+        log_action(f"InventoryDeleted: ID={product_id}({product_name})")
+        return {"message": "Inventory removed.", "product_id": product_id}
     except Exception as exc:
         handle_operation_error(exc)
 

@@ -1,4 +1,5 @@
 const state = {
+  products: [],
   inventory: [],
   report: [],
   chat: []
@@ -193,7 +194,7 @@ function renderReportCharts(items) {
 function renderInventoryTable(selector, items, compact = false) {
   const body = qs(selector);
   if (!items.length) {
-    body.innerHTML = emptyRow(compact ? 4 : 5, "No inventory found.");
+    body.innerHTML = emptyRow(5, "No inventory found.");
     return;
   }
 
@@ -201,13 +202,17 @@ function renderInventoryTable(selector, items, compact = false) {
     const cells = compact
       ? `
         <td>${item.product_id}</td>
-        <td>${item.name}</td>
+        <td>${escapeHtml(item.name)}</td>
         <td>${item.quantity}</td>
         <td>${statusBadge(item.active)}</td>
+        <td>
+          <button class="table-action" type="button" data-inventory-edit="${item.product_id}">Edit</button>
+          <button class="table-action danger" type="button" data-inventory-delete="${item.product_id}">Remove</button>
+        </td>
       `
       : `
         <td>${item.product_id}</td>
-        <td>${item.name}</td>
+        <td>${escapeHtml(item.name)}</td>
         <td>${formatter.format(item.price)}</td>
         <td>${item.quantity}</td>
         <td>${statusBadge(item.active)}</td>
@@ -215,6 +220,31 @@ function renderInventoryTable(selector, items, compact = false) {
 
     return `<tr>${cells}</tr>`;
   }).join("");
+}
+
+function renderProductTable(items) {
+  const body = qs("#products-body");
+  if (!items.length) {
+    body.innerHTML = emptyRow(6, "No products found.");
+    return;
+  }
+
+  body.innerHTML = items.map((item) => `
+    <tr>
+      <td>${item.product_id}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${formatter.format(item.price)}</td>
+      <td>${item.inventory}</td>
+      <td>${statusBadge(item.active)}</td>
+      <td>
+        <button class="table-action" type="button" data-product-edit="${item.product_id}">Edit</button>
+        <button class="table-action" type="button" data-product-status="${item.product_id}" data-active="${!item.active}">
+          ${item.active ? "Deactivate" : "Activate"}
+        </button>
+        <button class="table-action danger" type="button" data-product-delete="${item.product_id}">Delete</button>
+      </td>
+    </tr>
+  `).join("");
 }
 
 function renderReport(items) {
@@ -258,16 +288,19 @@ function renderMetrics(metrics) {
 }
 
 async function loadData(showToast = false) {
-  const [dashboard, inventory, report] = await Promise.all([
+  const [dashboard, products, inventory, report] = await Promise.all([
     api("/api/dashboard"),
+    api("/api/products"),
     api("/api/inventory"),
     api("/api/reports/sales")
   ]);
 
+  state.products = products.items;
   state.inventory = inventory.items;
   state.report = report.items;
 
   renderMetrics(dashboard);
+  renderProductTable(state.products);
   renderInventoryTable("#overview-inventory-body", state.inventory);
   renderInventoryTable("#inventory-body", state.inventory, true);
   renderReport(state.report);
@@ -317,6 +350,28 @@ function bindForms() {
     }
   });
 
+  qs("#product-update-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formPayload(form);
+    const productId = Number(payload.product_id);
+
+    try {
+      await api(`/api/products/${productId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: payload.name.trim(),
+          price: Number(payload.price)
+        })
+      });
+      form.reset();
+      await loadData();
+      toast("Product updated.");
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
   qs("#status-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -335,6 +390,45 @@ function bindForms() {
     }
   });
 
+  qs("#products-body").addEventListener("click", async (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+
+    const editId = button.dataset.productEdit;
+    const statusId = button.dataset.productStatus;
+    const deleteId = button.dataset.productDelete;
+
+    if (editId) {
+      const product = state.products.find((item) => item.product_id === Number(editId));
+      if (!product) return;
+      const form = qs("#product-update-form");
+      form.elements.product_id.value = product.product_id;
+      form.elements.name.value = product.name;
+      form.elements.price.value = product.price;
+      form.elements.name.focus();
+      return;
+    }
+
+    try {
+      if (statusId) {
+        await api(`/api/products/${Number(statusId)}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: button.dataset.active === "true" })
+        });
+        await loadData();
+        toast("Status updated.");
+      }
+
+      if (deleteId && window.confirm("Delete this product and its related inventory and sales records?")) {
+        await api(`/api/products/${Number(deleteId)}`, { method: "DELETE" });
+        await loadData();
+        toast("Product deleted.");
+      }
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
   qs("#inventory-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -347,6 +441,54 @@ function bindForms() {
       form.reset();
       await loadData();
       toast("Inventory updated.");
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
+  qs("#inventory-set-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+
+    try {
+      await api("/api/inventory", {
+        method: "PUT",
+        body: JSON.stringify({
+          product_id: Number(form.elements.product_id.value),
+          quantity: Number(form.elements.quantity.value)
+        })
+      });
+      form.reset();
+      await loadData();
+      toast("Inventory quantity set.");
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
+  qs("#inventory-body").addEventListener("click", async (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+
+    const editId = button.dataset.inventoryEdit;
+    const deleteId = button.dataset.inventoryDelete;
+
+    if (editId) {
+      const item = state.inventory.find((row) => row.product_id === Number(editId));
+      if (!item) return;
+      const form = qs("#inventory-set-form");
+      form.elements.product_id.value = item.product_id;
+      form.elements.quantity.value = item.quantity;
+      form.elements.quantity.focus();
+      return;
+    }
+
+    if (!deleteId) return;
+
+    try {
+      await api(`/api/inventory/${Number(deleteId)}`, { method: "DELETE" });
+      await loadData();
+      toast("Inventory removed.");
     } catch (error) {
       toast(error.message, "error");
     }

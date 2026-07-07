@@ -107,7 +107,7 @@
           </div>
         </section>
 
-        <section class="view two-column" id="products-view" aria-labelledby="products-heading">
+        <section class="view crud-layout" id="products-view" aria-labelledby="products-heading">
           <div class="form-panel">
             <h2 id="products-heading">Add Product</h2>
             <form id="product-form" class="form-stack">
@@ -120,6 +120,25 @@
                 <input name="price" type="number" min="0.01" step="0.01" required />
               </label>
               <button class="primary-button" type="submit">Add Product</button>
+            </form>
+          </div>
+
+          <div class="form-panel">
+            <h2>Edit Product</h2>
+            <form id="product-update-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Name</span>
+                <input name="name" type="text" autocomplete="off" required />
+              </label>
+              <label>
+                <span>Price</span>
+                <input name="price" type="number" min="0.01" step="0.01" required />
+              </label>
+              <button class="primary-button" type="submit">Save Product</button>
             </form>
           </div>
 
@@ -140,9 +159,31 @@
               <button class="secondary-button" type="submit">Update Status</button>
             </form>
           </div>
+
+          <div class="table-panel full-span">
+            <div class="panel-heading">
+              <h2>Product Catalog</h2>
+              <span>Full CRUD actions</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Inventory</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="products-body"></tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
-        <section class="view two-column" id="inventory-view" aria-labelledby="inventory-heading">
+        <section class="view crud-layout" id="inventory-view" aria-labelledby="inventory-heading">
           <div class="form-panel">
             <h2 id="inventory-heading">Add Inventory</h2>
             <form id="inventory-form" class="form-stack">
@@ -157,6 +198,22 @@
               <button class="primary-button" type="submit">Add Inventory</button>
             </form>
           </div>
+
+          <div class="form-panel">
+            <h2>Set Inventory</h2>
+            <form id="inventory-set-form" class="form-stack">
+              <label>
+                <span>Product ID</span>
+                <input name="product_id" type="number" min="1" step="1" required />
+              </label>
+              <label>
+                <span>Quantity</span>
+                <input name="quantity" type="number" min="0" step="1" required />
+              </label>
+              <button class="secondary-button" type="submit">Set Quantity</button>
+            </form>
+          </div>
+
           <div class="table-panel compact">
             <div class="panel-heading">
               <h2>Stock Levels</h2>
@@ -169,6 +226,7 @@
                     <th>Name</th>
                     <th>Qty</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="inventory-body"></tbody>

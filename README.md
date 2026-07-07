@@ -15,8 +15,9 @@ The app is prepared for Docker and Hugging Face Spaces. It listens on port `7860
 ## Features
 
 - Dashboard with product, inventory, sales, and inventory value metrics.
-- Product creation and active/inactive status management.
-- Inventory updates by product ID.
+- Full product CRUD with active/inactive status management.
+- Inventory add, set, list, and remove actions by product ID.
+- Product IDs are resequenced after a permanent product delete so remaining products stay ordered.
 - Store sale and online sale recording.
 - PostgreSQL trigger-based stock deduction when sales are recorded.
 - Sales and inventory reports with browser-rendered charts.
@@ -179,10 +180,15 @@ Seed data is inserted for four sample products:
 | `GET` | `/api/health` | Check API and database mode. |
 | `GET` | `/api/dashboard` | Summary metrics for the dashboard. |
 | `GET` | `/api/products` | List products with inventory and sales totals. |
+| `GET` | `/api/products/{product_id}` | Get one product with inventory and sales totals. |
 | `POST` | `/api/products` | Create a new product. |
+| `PUT` | `/api/products/{product_id}` | Update a product name and price. |
 | `PATCH` | `/api/products/{product_id}/status` | Activate or deactivate a product. |
+| `DELETE` | `/api/products/{product_id}` | Permanently delete a product, related rows, and resequence remaining product IDs. |
 | `GET` | `/api/inventory` | List inventory quantities. |
 | `POST` | `/api/inventory` | Add stock for a product. |
+| `PUT` | `/api/inventory` | Set a product stock quantity exactly. |
+| `DELETE` | `/api/inventory/{product_id}` | Remove a product stock row. |
 | `POST` | `/api/sales/store` | Record a physical store sale. |
 | `POST` | `/api/sales/online` | Record an online sale. |
 | `GET` | `/api/reports/sales` | Get sales and inventory report rows. |
