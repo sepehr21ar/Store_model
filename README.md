@@ -82,8 +82,15 @@ Notes:
 
 Install dependencies:
 
+Install dependencies:
+
 ```bash
 pip install -r requirements.txt
+```
+
+Start the app:
+
+```bash
 ```
 
 Start the app:
@@ -92,6 +99,17 @@ Start the app:
 uvicorn src.main:app --host 0.0.0.0 --port 7860
 ```
 
+Open:
+
+```text
+http://localhost:7860
+```
+
+Health check:
+
+```text
+http://localhost:7860/api/health
+```
 Open:
 
 ```text
@@ -115,6 +133,17 @@ The Dockerfile:
 - Starts `uvicorn src.main:app` on `0.0.0.0:7860`.
 
 Build the image:
+## Run With Docker
+
+The Dockerfile:
+
+- Uses `python:3.12-slim`.
+- Installs packages from `requirements.txt`.
+- Copies the application into `/home/user/app`.
+- Runs as a non-root user.
+- Starts `uvicorn src.main:app` on `0.0.0.0:7860`.
+
+Build the image:
 
 ```bash
 docker build -t store-management .
@@ -126,6 +155,25 @@ Run the container with your environment file:
 docker run --rm --env-file .env -p 7860:7860 store-management
 ```
 
+Run the container with your environment file:
+
+```bash
+docker run --rm --env-file .env -p 7860:7860 store-management
+```
+
+Open:
+
+```text
+http://localhost:7860
+```
+
+Important: this Docker image runs the FastAPI app only. PostgreSQL must be reachable through `DATABASE_URL`; the container does not start a local Postgres service.
+
+The `.dockerignore` file excludes `.env`, so secrets are not copied into the image. Pass them at runtime with `--env-file .env` locally, or configure them as platform secrets in production.
+
+## Hugging Face Spaces
+
+This repository includes Hugging Face Spaces front matter for Docker:
 Open:
 
 ```text
