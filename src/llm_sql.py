@@ -17,6 +17,7 @@ from langchain_cohere import ChatCohere
 
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+from langchain_openai import ChatOpenAI
 
 from .init_db import database_url
 
@@ -90,26 +91,26 @@ def db_uri() -> str:
 def get_agent():
     load_dotenv()
 
-    api_key = os.getenv("COHERE_API_KEY")
+    api_key = os.getenv("GAP")
     if not api_key:
-        raise RuntimeError("COHERE_API_KEY is not configured.")
+        raise RuntimeError("GAP is not configured.")
 
     db = SQLDatabase.from_uri(db_uri())
 
-    llm = ChatCohere(
-        model=os.getenv("COHERE_MODEL", "command-a-03-2025"),
-        cohere_api_key=api_key,
-        temperature=0,
-    )
-     # llm = ChatOpenAI(
-    #     model="gpt-4.1-mini",                   
-    #     base_url="https://api.gapgpt.app/v1",
-    #     api_key=api_key,                         
+    # llm = ChatCohere(
+    #     model=os.getenv("COHERE_MODEL", "command-a-03-2025"),
+    #     cohere_api_key=api_key,
     #     temperature=0,
+    
+    llm = ChatOpenAI(
+        model="gemini-2.5-flash",                   
+        base_url="https://api.gapgpt.app/v1",
+                                api_key=api_key,
+        temperature=0,
      
-    #     max_tokens=1024,
-    #     top_p=1.0,
-    # )
+        max_tokens=1024,
+        top_p=1.0,
+    )
 
     toolkit = SQLDatabaseToolkit(db=db, llm=llm)
     tools = [*toolkit.get_tools(), create_bar_chart]

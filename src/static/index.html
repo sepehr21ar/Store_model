@@ -1,335 +1,40 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Store Management</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="Primary">
-        <div class="brand">
-          <span class="brand-mark">SM</span>
-          <div>
-            <strong>Store</strong>
-            <span>Control</span>
-          </div>
-        </div>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Prism — Analytics workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/components.css">
+</head>
+<body>
+  <div id="boot-screen" class="boot-screen"><span>◆</span><strong>prism</strong><small>Preparing your workspace…</small></div>
+  <section id="auth-screen" class="auth-screen" hidden>
+    <div class="auth-story"><a class="logo"><i>◆</i> prism</a><div><span class="kicker">YOUR DATA, IN FOCUS</span><h1>Clarity lives<br>in the details.</h1><p>Connect your data, explore every angle, and ask better questions with an AI analyst by your side.</p></div><small>Secure · Private · Built for decisions</small></div>
+    <div class="auth-panel"><div class="auth-card"><span class="mobile-logo">◆ prism</span><h2 id="auth-title">Welcome back</h2><p id="auth-subtitle">Enter your details to access your workspace.</p>
+      <form id="auth-form"><label id="name-field" hidden>Full name<input name="name" autocomplete="name"></label><label>Email address<input name="email" type="email" autocomplete="email" required placeholder="you@company.com"></label><label>Password<input name="password" type="password" minlength="8" required placeholder="At least 8 characters"></label><button class="button primary" type="submit">Continue <span>→</span></button></form>
+      <p class="auth-switch"><span id="switch-copy">New to Prism?</span> <button id="auth-switch" type="button">Create an account</button></p>
+    </div></div>
+  </section>
 
-        <nav class="nav-list" aria-label="Sections">
-          <button class="nav-item active" data-view="overview" type="button">
-            <span class="nav-icon">01</span>
-            <span>Overview</span>
-          </button>
-          <button class="nav-item" data-view="products" type="button">
-            <span class="nav-icon">02</span>
-            <span>Products</span>
-          </button>
-          <button class="nav-item" data-view="inventory" type="button">
-            <span class="nav-icon">03</span>
-            <span>Inventory</span>
-          </button>
-          <button class="nav-item" data-view="sales" type="button">
-            <span class="nav-icon">04</span>
-            <span>Sales</span>
-          </button>
-          <button class="nav-item" data-view="reports" type="button">
-            <span class="nav-icon">05</span>
-            <span>Reports</span>
-          </button>
-          <button class="nav-item" data-view="assistant" type="button">
-            <span class="nav-icon">06</span>
-            <span>Assistant</span>
-          </button>
-        </nav>
-      </aside>
+  <div id="app" class="app" hidden>
+    <aside class="sidebar"><a class="logo dark"><i>◆</i> prism</a><nav>
+      <button class="nav active" data-view="home"><span>⌂</span>Overview</button><p>WORKSPACE</p>
+      <button class="nav" data-view="data"><span>▱</span>Data sources</button><button class="nav" data-view="explore"><span>⌁</span>Explore</button><button class="nav" data-view="dashboards"><span>▦</span>Dashboards</button><button class="nav" data-view="assistant"><span>✦</span>AI analyst</button>
+    </nav><div class="sidebar-foot"><div class="user-chip"><b id="avatar">U</b><div><strong id="user-name">User</strong><small id="user-email"></small></div><button id="logout" title="Log out">↗</button></div></div></aside>
+    <main><header><button id="mobile-menu">☰</button><div><span class="kicker" id="page-kicker">WORKSPACE</span><h1 id="page-title">Overview</h1></div><div class="header-actions"><select id="dataset-select"><option value="">Select a dataset</option></select><button class="button primary" data-view-jump="data">＋ Import data</button></div></header>
 
-      <main class="workspace">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">PostgreSQL operations</p>
-            <h1 id="view-title">Overview</h1>
-          </div>
-          <button class="icon-button" id="refresh-btn" type="button" title="Refresh data" aria-label="Refresh data">
-            <span>Refresh</span>
-          </button>
-        </header>
+      <section class="view active" id="home-view"><div class="welcome"><div><span class="kicker">GOOD TO SEE YOU</span><h2>Turn raw data into<br><em>clear decisions.</em></h2><p>Import a dataset to start exploring patterns, building visuals, and asking your AI analyst questions.</p><button class="button primary" data-view-jump="data">Import your first dataset →</button></div><div class="orb"><span>◆</span><i></i><i></i><i></i></div></div><div class="section-title"><div><h3>Your data library</h3><p>Recently added datasets</p></div></div><div id="recent-datasets" class="dataset-grid"></div></section>
 
-        <section class="view active" id="overview-view" aria-labelledby="overview-heading">
-          <h2 id="overview-heading" class="sr-only">Overview</h2>
-          <div class="metric-grid">
-            <article class="metric">
-              <span>Total products</span>
-              <strong data-metric="total_products">0</strong>
-            </article>
-            <article class="metric">
-              <span>Active products</span>
-              <strong data-metric="active_products">0</strong>
-            </article>
-            <article class="metric">
-              <span>Inventory units</span>
-              <strong data-metric="inventory_units">0</strong>
-            </article>
-            <article class="metric">
-              <span>Inventory value</span>
-              <strong data-metric="inventory_value">$0.00</strong>
-            </article>
-            <article class="metric">
-              <span>Store sales</span>
-              <strong data-metric="store_sales">0</strong>
-            </article>
-            <article class="metric">
-              <span>Online sales</span>
-              <strong data-metric="online_sales">0</strong>
-            </article>
-          </div>
+      <section class="view" id="data-view"><div class="import-layout"><div class="panel upload-panel"><span class="panel-icon">⇧</span><h3>Import a data file</h3><p>Upload Excel, CSV, TSV, or delimited TXT files up to 25 MB and 50,000 rows.</p><form id="upload-form"><input name="name" placeholder="Dataset name (optional)"><label class="dropzone" id="file-dropzone"><strong>Choose a file</strong><span id="file-name">.xlsx, .xls, .csv, .tsv, or .txt</span><input name="file" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" required></label><button class="button primary">Upload dataset</button></form><div class="upload-help"><span>✓ First row should contain column names</span><span>✓ TXT/CSV delimiter is detected automatically</span><span>✓ Your files stay private to your account</span></div></div><div class="import-note"><span>◆</span><div><h3>Built for clean analysis</h3><p>Prism detects numeric values, categories, and dates automatically. You can preview the data before building charts or asking the AI analyst.</p></div></div></div><div class="section-title"><div><h3>All datasets</h3><p>Files stored privately in your workspace</p></div></div><div id="all-datasets" class="dataset-grid"></div></section>
 
-          <div class="table-panel">
-            <div class="panel-heading">
-              <h2>Current Inventory</h2>
-              <span id="inventory-count">0 items</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="overview-inventory-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+      <section class="view" id="explore-view"><div id="explore-empty" class="empty"><b>⌁</b><h3>Select a dataset to explore</h3><p>Use the dataset menu at the top of the page.</p></div><div id="explore-content" hidden><div id="summary-cards" class="metric-grid"></div><div class="panel chart-builder"><div class="panel-head"><div><h3>Visual analysis</h3><p>Compare categories with bars or follow changes with a line.</p></div><button id="save-chart" class="button secondary">Save to dashboard</button></div><div class="builder-controls"><label>Chart type<select id="chart-type"><option value="bar">Bar chart</option><option value="line">Line chart</option></select></label><label>Category / X axis<select id="chart-category"></select></label><label>Value / Y axis<select id="chart-value"></select></label><label>Calculation<select id="chart-aggregation"><option value="sum">Sum</option><option value="mean">Average</option><option value="count">Count</option><option value="max">Maximum</option><option value="min">Minimum</option></select></label><button id="build-chart" class="button primary">Build chart</button></div><div class="chart-wrap"><svg id="analysis-chart" viewBox="0 0 900 360"></svg></div></div><div class="panel"><div class="panel-head"><div><h3>Data preview</h3><p id="table-caption"></p></div><button id="toggle-rows" class="button secondary" type="button" hidden>View all rows</button></div><div class="table-wrap" id="data-table-wrap"><table><thead id="data-head"></thead><tbody id="data-body"></tbody></table></div></div></div></section>
 
-        <section class="view crud-layout" id="products-view" aria-labelledby="products-heading">
-          <div class="form-panel">
-            <h2 id="products-heading">Add Product</h2>
-            <form id="product-form" class="form-stack">
-              <label>
-                <span>Name</span>
-                <input name="name" type="text" autocomplete="off" required />
-              </label>
-              <label>
-                <span>Price</span>
-                <input name="price" type="number" min="0.01" step="0.01" required />
-              </label>
-              <button class="primary-button" type="submit">Add Product</button>
-            </form>
-          </div>
+      <section class="view" id="dashboards-view"><div class="section-title"><div><h3>Saved dashboards</h3><p>Your reusable analysis boards</p></div><button id="new-dashboard" class="button primary">＋ New dashboard</button></div><div id="dashboard-list" class="dashboard-list"></div></section>
 
-          <div class="form-panel">
-            <h2>Edit Product</h2>
-            <form id="product-update-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Name</span>
-                <input name="name" type="text" autocomplete="off" required />
-              </label>
-              <label>
-                <span>Price</span>
-                <input name="price" type="number" min="0.01" step="0.01" required />
-              </label>
-              <button class="primary-button" type="submit">Save Product</button>
-            </form>
-          </div>
+      <section class="view" id="assistant-view"><div class="assistant-layout"><div class="assistant-intro"><span>✦</span><h2>Your AI data analyst</h2><p>Ask questions about the selected dataset. Prism uses its schema, statistical profile, and samples to keep answers grounded.</p><div class="prompt-list"><button>What are the most important patterns?</button><button>Which categories contribute the most?</button><button>Are there unusual values I should inspect?</button></div></div><div class="chat-panel"><div id="chat-log" class="chat-log"></div><form id="chat-form"><input name="message" placeholder="Ask a question about your data…" required><button class="send">↑</button></form><small>AI can make mistakes. Verify important conclusions.</small></div></div></section>
 
-          <div class="form-panel">
-            <h2>Product Status</h2>
-            <form id="status-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Status</span>
-                <select name="active">
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </label>
-              <button class="secondary-button" type="submit">Update Status</button>
-            </form>
-          </div>
-
-          <div class="table-panel full-span">
-            <div class="panel-heading">
-              <h2>Product Catalog</h2>
-              <span>Full CRUD actions</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Inventory</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="products-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section class="view crud-layout" id="inventory-view" aria-labelledby="inventory-heading">
-          <div class="form-panel">
-            <h2 id="inventory-heading">Add Inventory</h2>
-            <form id="inventory-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Quantity</span>
-                <input name="quantity" type="number" min="1" step="1" required />
-              </label>
-              <button class="primary-button" type="submit">Add Inventory</button>
-            </form>
-          </div>
-
-          <div class="form-panel">
-            <h2>Set Inventory</h2>
-            <form id="inventory-set-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Quantity</span>
-                <input name="quantity" type="number" min="0" step="1" required />
-              </label>
-              <button class="secondary-button" type="submit">Set Quantity</button>
-            </form>
-          </div>
-
-          <div class="table-panel compact">
-            <div class="panel-heading">
-              <h2>Stock Levels</h2>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Qty</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="inventory-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section class="view two-column" id="sales-view" aria-labelledby="sales-heading">
-          <div class="form-panel">
-            <h2 id="sales-heading">Store Sale</h2>
-            <form id="store-sale-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Quantity</span>
-                <input name="quantity" type="number" min="1" step="1" required />
-              </label>
-              <button class="primary-button" type="submit">Record Store Sale</button>
-            </form>
-          </div>
-
-          <div class="form-panel">
-            <h2>Online Sale</h2>
-            <form id="online-sale-form" class="form-stack">
-              <label>
-                <span>Product ID</span>
-                <input name="product_id" type="number" min="1" step="1" required />
-              </label>
-              <label>
-                <span>Quantity</span>
-                <input name="quantity" type="number" min="1" step="1" required />
-              </label>
-              <button class="secondary-button" type="submit">Record Online Sale</button>
-            </form>
-          </div>
-        </section>
-
-        <section class="view" id="reports-view" aria-labelledby="reports-heading">
-          <div class="report-visuals" aria-label="Report charts">
-            <article class="chart-panel">
-              <div class="panel-heading">
-                <h2>Sales Channels</h2>
-                <span>Store vs online</span>
-              </div>
-              <div class="chart-frame">
-                <svg id="sales-chart" class="chart" role="img" aria-label="Sales by product and channel"></svg>
-              </div>
-            </article>
-            <article class="chart-panel">
-              <div class="panel-heading">
-                <h2>Inventory Levels</h2>
-                <span>Units on hand</span>
-              </div>
-              <div class="chart-frame">
-                <svg id="inventory-chart" class="chart" role="img" aria-label="Inventory by product"></svg>
-              </div>
-            </article>
-          </div>
-
-          <div class="table-panel">
-            <div class="panel-heading">
-              <h2 id="reports-heading">Sales Report</h2>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Inventory</th>
-                    <th>Store</th>
-                    <th>Online</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="report-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section class="view" id="assistant-view" aria-labelledby="assistant-heading">
-          <div class="assistant-panel">
-            <div class="panel-heading">
-              <h2 id="assistant-heading">Database Assistant</h2>
-              <span id="chat-status">Idle</span>
-            </div>
-            <div class="chat-log" id="chat-log" aria-live="polite"></div>
-            <form id="chat-form" class="chat-form">
-              <input name="message" type="text" autocomplete="off" required />
-              <button class="primary-button" type="submit">Send</button>
-            </form>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js"></script>
-  </body>
-</html>
+    </main>
+  </div><div id="toast" class="toast"></div><script src="/static/app.js"></script>
+</body></html>

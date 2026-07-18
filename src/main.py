@@ -1,354 +1,220 @@
+import io
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Generator, Literal
+from typing import Literal
 
-import psycopg
+import pandas as pd
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
-from .init_db import database_url, initialize_database
-from .store import StoreApp
-
-
-BASE_DIR = Path(__file__).resolve().parent
-POSTGRES_SCHEMA_PATH = BASE_DIR / "store_schema_postgres.sql"
-STATIC_DIR = BASE_DIR / "static"
+from .ai_service import answer_question
+from .analytics import chart_data, create_dataset, dataframe, dataset_summary, json_value, owned_dataset, profile_for_ai
+from .database import Base, engine, get_db
+from .models import ChatMessage, Dashboard, Dataset, DatasetRow, User
+from .security import create_token, current_user, hash_password, verify_password
 
 
 load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
 
 
-class ProductCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=160)
-    price: float = Field(gt=0)
+class RegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
 
 
-class ProductUpdate(BaseModel):
-    name: str = Field(min_length=1, max_length=160)
-    price: float = Field(gt=0)
+class ChartRequest(BaseModel):
+    category: str | None = None
+    value: str
+    aggregation: str = "sum"
+    chart_type: Literal["bar", "line"] = "bar"
+    limit: int = Field(default=12, ge=1, le=50)
 
 
-class QuantityChange(BaseModel):
-    product_id: int = Field(gt=0)
-    quantity: int = Field(gt=0)
-
-
-class InventoryUpdate(BaseModel):
-    product_id: int = Field(gt=0)
-    quantity: int = Field(ge=0)
-
-
-class ProductStatusUpdate(BaseModel):
-    active: bool
-
-
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
-    content: str = Field(min_length=1)
-    visuals: list[dict] = Field(default_factory=list)
+class DashboardRequest(BaseModel):
+    dataset_id: int
+    name: str = Field(min_length=1, max_length=180)
+    config: list[dict] = Field(default_factory=list)
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1)
-    history: list[ChatMessage] = Field(default_factory=list)
+    dataset_id: int
+    message: str = Field(min_length=1, max_length=4000)
 
 
-def log_action(action: str) -> None:
-    with psycopg.connect(database_url()) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO action_logs (action_text) VALUES (%s)", (action,))
-        conn.commit()
-
-
-def get_store() -> Generator[StoreApp, None, None]:
-    store_app = StoreApp(database_url())
-    store_app.start()
-    try:
-        yield store_app
-    finally:
-        store_app.stop()
-
-
-def report_row_to_dict(row: tuple) -> dict:
-    return {
-        "product_id": row[0],
-        "name": row[1],
-        "price": float(row[2]),
-        "inventory": int(row[3] or 0),
-        "store_sales": int(row[4] or 0),
-        "online_sales": int(row[5] or 0),
-        "total_sales": int(row[6] or 0),
-        "active": bool(row[7]),
-    }
-
-
-def inventory_row_to_dict(row: tuple) -> dict:
-    return {
-        "product_id": row[0],
-        "name": row[1],
-        "price": float(row[2]),
-        "quantity": int(row[3] or 0),
-        "active": bool(row[7]),
-    }
-
-
-def get_report_rows(store_app: StoreApp) -> list[tuple]:
-    return store_app.report.get_sales_report()
-
-
-def ensure_product_exists(store_app: StoreApp, product_id: int) -> None:
-    if not store_app.store.check_product_exists(product_id):
-        raise HTTPException(status_code=404, detail=f"Product {product_id} was not found.")
-
-
-def handle_operation_error(exc: Exception) -> None:
-    if isinstance(exc, ValueError):
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    raise HTTPException(status_code=500, detail=str(exc)) from exc
+def dataset_dict(item: Dataset) -> dict:
+    return {"id": item.id, "name": item.name, "source_type": item.source_type, "source_label": item.source_label, "columns": item.columns, "row_count": item.row_count, "created_at": item.created_at}
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    initialize_database(POSTGRES_SCHEMA_PATH)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
-app = FastAPI(
-    title="Store Management API",
-    version="2.0.0",
-    lifespan=lifespan,
-)
-
-cors_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if origin.strip()]
-if cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+app = FastAPI(title="Prism Analytics API", version="3.0.0", lifespan=lifespan)
+origins = [item.strip() for item in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if item.strip()]
+if origins:
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.get("/api/health")
-def health() -> dict:
-    return {"status": "ok", "database": "postgresql"}
+def health():
+    return {"status": "ok", "service": "prism-analytics"}
 
 
-@app.get("/api/dashboard")
-def dashboard(store_app: StoreApp = Depends(get_store)) -> dict:
-    rows = [report_row_to_dict(row) for row in get_report_rows(store_app)]
-    total_inventory = sum(row["inventory"] for row in rows)
-    store_sales = sum(row["store_sales"] for row in rows)
-    online_sales = sum(row["online_sales"] for row in rows)
-    inventory_value = sum(row["price"] * row["inventory"] for row in rows)
-
-    return {
-        "total_products": len(rows),
-        "active_products": sum(1 for row in rows if row["active"]),
-        "inventory_units": total_inventory,
-        "store_sales": store_sales,
-        "online_sales": online_sales,
-        "total_sales": store_sales + online_sales,
-        "inventory_value": round(inventory_value, 2),
-    }
+@app.post("/api/auth/register", status_code=201)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    email = payload.email.lower().strip()
+    if db.scalar(select(User).where(User.email == email)):
+        raise HTTPException(409, "An account with this email already exists.")
+    user = User(name=payload.name.strip(), email=email, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": create_token(user.id), "token_type": "bearer", "user": {"id": user.id, "name": user.name, "email": user.email}}
 
 
-@app.get("/api/products")
-def list_products(store_app: StoreApp = Depends(get_store)) -> dict:
-    items = [report_row_to_dict(row) for row in get_report_rows(store_app)]
-    return {"items": items, "count": len(items)}
+@app.post("/api/auth/login")
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.email == form.username.lower().strip()))
+    if not user or not verify_password(form.password, user.password_hash):
+        raise HTTPException(401, "Incorrect email or password.")
+    return {"access_token": create_token(user.id), "token_type": "bearer", "user": {"id": user.id, "name": user.name, "email": user.email}}
 
 
-@app.get("/api/products/{product_id}")
-def get_product(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, product_id)
-    for row in get_report_rows(store_app):
-        if row[0] == product_id:
-            return {"item": report_row_to_dict(row)}
-    raise HTTPException(status_code=404, detail=f"Product {product_id} was not found.")
+@app.get("/api/auth/me")
+def me(user: User = Depends(current_user)):
+    return {"id": user.id, "name": user.name, "email": user.email}
 
 
-@app.post("/api/products", status_code=201)
-def create_product(payload: ProductCreate, store_app: StoreApp = Depends(get_store)) -> dict:
+@app.get("/api/datasets")
+def list_datasets(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    items = db.scalars(select(Dataset).where(Dataset.user_id == user.id).order_by(Dataset.created_at.desc())).all()
+    return {"items": [dataset_dict(item) for item in items]}
+
+
+@app.post("/api/datasets/upload", status_code=201)
+async def upload_dataset(name: str | None = Form(None), file: UploadFile = File(...), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in {".xlsx", ".xls", ".csv", ".txt", ".tsv"}:
+        raise HTTPException(400, "Supported files are .xlsx, .xls, .csv, .tsv, and .txt.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "The uploaded file is empty.")
+    if len(content) > int(os.getenv("MAX_UPLOAD_MB", "25")) * 1024 * 1024:
+        raise HTTPException(413, "File is too large.")
     try:
-        name = payload.name.strip()
-        if not name:
-            raise ValueError("Product name cannot be blank.")
-        product_id = store_app.add_new_product(name, payload.price)
-        log_action(f"ProductAdded: ID={product_id} Name={name}")
-        return {"message": "Product added.", "product_id": product_id}
-    except Exception as exc:
-        handle_operation_error(exc)
-
-
-@app.put("/api/products/{product_id}")
-def update_product(
-    product_id: int,
-    payload: ProductUpdate,
-    store_app: StoreApp = Depends(get_store),
-) -> dict:
-    ensure_product_exists(store_app, product_id)
-    try:
-        name = payload.name.strip()
-        if not name:
-            raise ValueError("Product name cannot be blank.")
-        store_app.update_product(product_id, name, payload.price)
-        log_action(f"ProductUpdated: ID={product_id} Name={name}")
-        return {"message": "Product updated.", "product_id": product_id}
-    except Exception as exc:
-        handle_operation_error(exc)
-
-
-@app.patch("/api/products/{product_id}/status")
-def update_product_status(
-    product_id: int,
-    payload: ProductStatusUpdate,
-    store_app: StoreApp = Depends(get_store),
-) -> dict:
-    ensure_product_exists(store_app, product_id)
-    try:
-        if payload.active:
-            store_app.storage.activate_product(product_id)
-            action = "ProductActivated"
-            message = "Product activated."
+        if extension in {".csv", ".txt", ".tsv"}:
+            separator = "\t" if extension == ".tsv" else None
+            try:
+                frame = pd.read_csv(io.BytesIO(content), sep=separator, engine="python", encoding="utf-8-sig")
+            except UnicodeDecodeError:
+                frame = pd.read_csv(io.BytesIO(content), sep=separator, engine="python", encoding="latin-1")
         else:
-            store_app.storage.delete_product(product_id)
-            action = "ProductDeactivated"
-            message = "Product deactivated."
-
-        log_action(f"{action}: ID={product_id}")
-        return {"message": message, "product_id": product_id, "active": payload.active}
+            engine_name = "openpyxl" if extension == ".xlsx" else "xlrd"
+            frame = pd.read_excel(io.BytesIO(content), engine=engine_name)
+    except ImportError as exc:
+        package = "openpyxl" if extension == ".xlsx" else "xlrd"
+        raise HTTPException(503, f"Excel support is not installed on the server. Install the '{package}' dependency and restart the app.") from exc
     except Exception as exc:
-        handle_operation_error(exc)
+        raise HTTPException(400, "Could not read this file. Check that it is not corrupted and that the first row contains column names.") from exc
+    dataset_name = (name or "").strip() or Path(file.filename or "Dataset").stem
+    item = create_dataset(db, user.id, dataset_name, frame, "file", file.filename)
+    return dataset_dict(item)
 
 
-@app.delete("/api/products/{product_id}")
-def delete_product(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, product_id)
-    product = store_app.get_product_by_id(product_id)
-    product_name = product.name if product else "Unknown"
-    try:
-        store_app.delete_product(product_id)
-        log_action(f"ProductDeleted: ID={product_id}({product_name})")
-        return {"message": "Product deleted.", "product_id": product_id}
-    except Exception as exc:
-        handle_operation_error(exc)
+@app.get("/api/datasets/{dataset_id}")
+def get_dataset(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, dataset_id, user.id)
+    frame = dataframe(db, item)
+    return {**dataset_dict(item), "summary": dataset_summary(frame, item.columns)}
 
 
-@app.get("/api/inventory")
-def list_inventory(store_app: StoreApp = Depends(get_store)) -> dict:
-    items = [inventory_row_to_dict(row) for row in get_report_rows(store_app)]
-    return {"items": items, "count": len(items)}
+@app.get("/api/datasets/{dataset_id}/rows")
+def get_rows(dataset_id: int, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=1000), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, dataset_id, user.id)
+    rows = db.scalars(select(DatasetRow).where(DatasetRow.dataset_id == item.id).order_by(DatasetRow.position).offset(offset).limit(limit)).all()
+    return {"items": [row.payload for row in rows], "total": item.row_count, "offset": offset, "limit": limit}
 
 
-@app.post("/api/inventory")
-def add_inventory(payload: QuantityChange, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, payload.product_id)
-    try:
-        store_app.add_product_to_inventory(payload.product_id, payload.quantity)
-        product = store_app.get_product_by_id(payload.product_id)
-        product_name = product.name if product else "Unknown"
-        log_action(f"InventoryUpdated: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
-        return {"message": "Inventory updated.", "product_id": payload.product_id, "quantity": payload.quantity}
-    except Exception as exc:
-        handle_operation_error(exc)
+@app.delete("/api/datasets/{dataset_id}")
+def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, dataset_id, user.id)
+    db.execute(delete(ChatMessage).where(ChatMessage.dataset_id == item.id, ChatMessage.user_id == user.id))
+    db.execute(delete(Dashboard).where(Dashboard.dataset_id == item.id, Dashboard.user_id == user.id))
+    db.delete(item)
+    db.commit()
+    return {"message": "Dataset deleted."}
 
 
-@app.put("/api/inventory")
-def set_inventory(payload: InventoryUpdate, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, payload.product_id)
-    try:
-        store_app.set_inventory_quantity(payload.product_id, payload.quantity)
-        product = store_app.get_product_by_id(payload.product_id)
-        product_name = product.name if product else "Unknown"
-        log_action(f"InventorySet: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
-        return {"message": "Inventory quantity set.", "product_id": payload.product_id, "quantity": payload.quantity}
-    except Exception as exc:
-        handle_operation_error(exc)
+@app.post("/api/datasets/{dataset_id}/chart")
+def analyze_chart(dataset_id: int, payload: ChartRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, dataset_id, user.id)
+    if payload.chart_type == "line" and not payload.category:
+        raise HTTPException(400, "Select a category or date column for the line chart X axis.")
+    return chart_data(dataframe(db, item), payload.category, payload.value, payload.aggregation, payload.limit, payload.chart_type)
 
 
-@app.delete("/api/inventory/{product_id}")
-def delete_inventory(product_id: int, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, product_id)
-    product = store_app.get_product_by_id(product_id)
-    product_name = product.name if product else "Unknown"
-    try:
-        store_app.set_inventory_quantity(product_id, 0)
-        log_action(f"InventoryDeleted: ID={product_id}({product_name})")
-        return {"message": "Inventory removed.", "product_id": product_id}
-    except Exception as exc:
-        handle_operation_error(exc)
+@app.get("/api/dashboards")
+def list_dashboards(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    items = db.scalars(select(Dashboard).where(Dashboard.user_id == user.id).order_by(Dashboard.created_at.desc())).all()
+    return {"items": [{"id": item.id, "dataset_id": item.dataset_id, "name": item.name, "config": item.config, "created_at": item.created_at} for item in items]}
 
 
-@app.post("/api/sales/store")
-def record_store_sale(payload: QuantityChange, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, payload.product_id)
-    try:
-        store_app.record_store_sale(payload.product_id, payload.quantity)
-        product = store_app.get_product_by_id(payload.product_id)
-        product_name = product.name if product else "Unknown"
-        log_action(f"StoreSale: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
-        return {"message": "Store sale recorded.", "product_id": payload.product_id, "quantity": payload.quantity}
-    except Exception as exc:
-        handle_operation_error(exc)
-
-
-@app.post("/api/sales/online")
-def record_online_sale(payload: QuantityChange, store_app: StoreApp = Depends(get_store)) -> dict:
-    ensure_product_exists(store_app, payload.product_id)
-    try:
-        store_app.record_online_sale(payload.product_id, payload.quantity)
-        product = store_app.get_product_by_id(payload.product_id)
-        product_name = product.name if product else "Unknown"
-        log_action(f"OnlineSale: ID={payload.product_id}({product_name}) QTY={payload.quantity}")
-        return {"message": "Online sale recorded.", "product_id": payload.product_id, "quantity": payload.quantity}
-    except Exception as exc:
-        handle_operation_error(exc)
-
-
-@app.get("/api/reports/sales")
-def sales_report(store_app: StoreApp = Depends(get_store)) -> dict:
-    items = [report_row_to_dict(row) for row in get_report_rows(store_app)]
-    return {"items": items, "count": len(items)}
+@app.post("/api/dashboards", status_code=201)
+def save_dashboard(payload: DashboardRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    owned_dataset(db, payload.dataset_id, user.id)
+    item = Dashboard(user_id=user.id, dataset_id=payload.dataset_id, name=payload.name.strip(), config=payload.config)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {"id": item.id, "name": item.name, "config": item.config}
 
 
 @app.post("/api/chat")
-def chat(payload: ChatRequest) -> dict:
-    history = [message.model_dump() for message in payload.history]
-    history.append({"role": "user", "content": payload.message.strip()})
-
+def chat(payload: ChatRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, payload.dataset_id, user.id)
+    messages = db.scalars(select(ChatMessage).where(ChatMessage.user_id == user.id, ChatMessage.dataset_id == item.id).order_by(ChatMessage.created_at.desc()).limit(8)).all()
+    history = [{"role": row.role, "content": row.content} for row in reversed(messages)]
+    db.add(ChatMessage(user_id=user.id, dataset_id=item.id, role="user", content=payload.message.strip()))
     try:
-        from .llm_sql import chat_with_llm
-
-        messages, status, visuals = chat_with_llm(history)
-        return {"messages": messages, "status": status, "visuals": visuals}
+        result = answer_question(payload.message.strip(), item.name, profile_for_ai(dataframe(db, item), item.columns), history)
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(503, str(exc)) from exc
+    db.add(ChatMessage(user_id=user.id, dataset_id=item.id, role="assistant", content=result["answer"], visual=result["chart"]))
+    db.commit()
+    return result
+
+
+@app.get("/api/chat/{dataset_id}")
+def chat_history(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    owned_dataset(db, dataset_id, user.id)
+    items = db.scalars(select(ChatMessage).where(ChatMessage.user_id == user.id, ChatMessage.dataset_id == dataset_id).order_by(ChatMessage.created_at).limit(100)).all()
+    return {"items": [{"role": item.role, "content": item.content, "chart": item.visual, "created_at": item.created_at} for item in items]}
 
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
+def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/{path:path}", include_in_schema=False)
-def frontend_fallback(path: str) -> FileResponse:
+def frontend(path: str):
     if path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    asset_path = STATIC_DIR / path
-    if asset_path.is_file():
-        return FileResponse(asset_path)
-
-    return FileResponse(STATIC_DIR / "index.html")
+        raise HTTPException(404, "Not found")
+    asset = STATIC_DIR / path
+    return FileResponse(asset if asset.is_file() else STATIC_DIR / "index.html")

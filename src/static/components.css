@@ -1,0 +1,169 @@
+.mini-chart {
+  background: white;
+  border-radius: 10px;
+  margin-top: 12px;
+  max-width: 100%;
+  padding: 5px;
+  width: 420px;
+}
+
+.mini-chart svg {
+  display: block;
+  width: 100%;
+}
+
+.line-path {
+  fill: none;
+  stroke: #1f6b52;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.line-point {
+  fill: white;
+  stroke: #1f6b52;
+  stroke-width: 3;
+}
+
+.line-point:hover {
+  fill: #d7ef87;
+}
+
+.builder-controls {
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) auto;
+}
+
+#toggle-rows:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.dashboard-card {
+  align-items: flex-start;
+}
+
+.dashboard-preview {
+  width: min(560px, 60%);
+}
+
+.dashboard-preview svg {
+  display: block;
+  max-height: 220px;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .import-layout {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-card {
+    display: block;
+  }
+
+  .dashboard-preview {
+    margin-top: 16px;
+    width: 100%;
+  }
+
+  .builder-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .builder-controls .button {
+    grid-column: 1 / -1;
+  }
+
+  .panel-head {
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+.boot-screen {
+  align-items: center;
+  background: #173d32;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 100;
+}
+
+.boot-screen span {
+  color: #d7ef87;
+  font-size: 34px;
+}
+
+.boot-screen strong {
+  font: 800 28px Manrope, sans-serif;
+}
+
+.boot-screen small {
+  color: #bcd0c8;
+  margin-top: 8px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.import-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr);
+}
+
+.dropzone strong,
+.dropzone span {
+  display: block;
+}
+
+.dropzone span {
+  color: #697571;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 6px;
+}
+
+.dropzone.has-file {
+  background: #edf7f1;
+  border-color: #1f6b52;
+}
+
+.upload-help {
+  color: #697571;
+  display: grid;
+  font-size: 12px;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.import-note {
+  align-items: flex-start;
+  background: #173d32;
+  border-radius: 14px;
+  color: white;
+  display: flex;
+  gap: 18px;
+  padding: 28px;
+}
+
+.import-note > span {
+  color: #d7ef87;
+  font-size: 26px;
+}
+
+.import-note h3 {
+  font: 700 20px Manrope, sans-serif;
+  margin: 0 0 9px;
+}
+
+.import-note p {
+  color: #c0d3cb;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
