@@ -9,9 +9,12 @@ Prism is a private, multi-user analytics workspace built with FastAPI, SQLAlchem
 - Excel (`.xlsx`, `.xls`), CSV, TSV, and delimited TXT imports
 - Automatic delimiter and common text-encoding handling
 - Automatic numeric, category, and date column detection
-- Dataset summaries, paginated preview, and sum/average/count/min/max analysis
+- Dataset quality metrics for completeness, missing cells, and duplicate rows
+- Dataset summaries and raw/sum/average/count/min/max analysis
 - Bar and line charts with saved dashboards
+- A separate private dashboard page for every imported file
 - A fast 50-row preview with an optional full-row viewer
+- Ownership-safe dataset deletion and authenticated CSV export
 - Persistent dataset-specific AI conversations through LangChain and Cohere
 - Responsive frontend served directly by FastAPI
 - SQLite local development and PostgreSQL production deployment

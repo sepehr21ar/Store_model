@@ -1,5 +1,6 @@
 import io
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field
@@ -148,14 +150,27 @@ def get_rows(dataset_id: int, offset: int = Query(0, ge=0), limit: int = Query(5
     return {"items": [row.payload for row in rows], "total": item.row_count, "offset": offset, "limit": limit}
 
 
+@app.get("/api/datasets/{dataset_id}/export")
+def export_dataset(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = owned_dataset(db, dataset_id, user.id)
+    content = dataframe(db, item).to_csv(index=False).encode("utf-8-sig")
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "-", item.name).strip("-.") or f"dataset-{item.id}"
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
+    )
+
+
 @app.delete("/api/datasets/{dataset_id}")
 def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     item = owned_dataset(db, dataset_id, user.id)
     db.execute(delete(ChatMessage).where(ChatMessage.dataset_id == item.id, ChatMessage.user_id == user.id))
     db.execute(delete(Dashboard).where(Dashboard.dataset_id == item.id, Dashboard.user_id == user.id))
+    db.execute(delete(DatasetRow).where(DatasetRow.dataset_id == item.id))
     db.delete(item)
     db.commit()
-    return {"message": "Dataset deleted."}
+    return {"message": "Dataset deleted.", "dataset_id": dataset_id}
 
 
 @app.post("/api/datasets/{dataset_id}/chart")
@@ -167,8 +182,12 @@ def analyze_chart(dataset_id: int, payload: ChartRequest, user: User = Depends(c
 
 
 @app.get("/api/dashboards")
-def list_dashboards(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    items = db.scalars(select(Dashboard).where(Dashboard.user_id == user.id).order_by(Dashboard.created_at.desc())).all()
+def list_dashboards(dataset_id: int | None = Query(None, ge=1), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    query = select(Dashboard).where(Dashboard.user_id == user.id)
+    if dataset_id is not None:
+        owned_dataset(db, dataset_id, user.id)
+        query = query.where(Dashboard.dataset_id == dataset_id)
+    items = db.scalars(query.order_by(Dashboard.created_at.desc())).all()
     return {"items": [{"id": item.id, "dataset_id": item.dataset_id, "name": item.name, "config": item.config, "created_at": item.created_at} for item in items]}
 
 

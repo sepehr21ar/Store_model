@@ -88,7 +88,23 @@ def dataset_summary(frame: pd.DataFrame, columns: list[dict]) -> dict:
         series = pd.to_numeric(frame[name], errors="coerce").dropna()
         if len(series):
             metrics.append({"column": name, "sum": json_value(series.sum()), "average": json_value(series.mean()), "min": json_value(series.min()), "max": json_value(series.max())})
-    return {"rows": len(frame), "columns": len(columns), "numeric_columns": len(numeric), "category_columns": len(categorical), "metrics": metrics}
+    total_cells = len(frame) * len(columns)
+    missing_cells = int(frame.isna().sum().sum())
+    try:
+        duplicate_rows = int(frame.duplicated().sum())
+    except TypeError:
+        duplicate_rows = int(frame.astype(str).duplicated().sum())
+    completeness = round((1 - missing_cells / total_cells) * 100, 1) if total_cells else 100.0
+    return {
+        "rows": len(frame),
+        "columns": len(columns),
+        "numeric_columns": len(numeric),
+        "category_columns": len(categorical),
+        "missing_cells": missing_cells,
+        "duplicate_rows": duplicate_rows,
+        "completeness": completeness,
+        "metrics": metrics,
+    }
 
 
 def chart_data(
@@ -104,6 +120,18 @@ def chart_data(
     if value not in frame.columns:
         raise HTTPException(400, "Unknown value column.")
     values = pd.to_numeric(frame[value], errors="coerce")
+    if aggregation == "none":
+        labels = frame[category].fillna("Unknown").astype(str) if category else pd.Series([f"Row {index + 1}" for index in range(len(frame))])
+        raw = pd.DataFrame({"label": labels, "value": values}).dropna(subset=["value"]).head(min(limit, 50))
+        return {
+            "type": chart_type if category else "bar",
+            "title": f"Raw {value} values" + (f" by {category}" if category else ""),
+            "labels": raw["label"].tolist(),
+            "series": [{"name": value, "values": [json_value(v) for v in raw["value"].tolist()]}],
+            "category": category,
+            "value": value,
+            "aggregation": aggregation,
+        }
     if category:
         if category not in frame.columns:
             raise HTTPException(400, "Unknown category column.")
