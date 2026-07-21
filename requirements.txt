@@ -8,7 +8,5 @@ PyJWT[crypto]
 pandas
 openpyxl
 xlrd
-langchain
 langchain-core
-langchain-cohere
-langchain_openai
+langchain-openai
