@@ -11,3 +11,4 @@ xlrd
 langchain
 langchain-core
 langchain-cohere
+langchain_openai
