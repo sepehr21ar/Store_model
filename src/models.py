@@ -11,7 +11,7 @@ def now_utc():
 
 
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "prism_users"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
@@ -21,9 +21,9 @@ class User(Base):
 
 
 class Dataset(Base):
-    __tablename__ = "datasets"
+    __tablename__ = "prism_datasets"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("prism_users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(180))
     source_type: Mapped[str] = mapped_column(String(30), default="excel")
     source_label: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -34,18 +34,18 @@ class Dataset(Base):
 
 
 class DatasetRow(Base):
-    __tablename__ = "dataset_rows"
+    __tablename__ = "prism_dataset_rows"
     id: Mapped[int] = mapped_column(primary_key=True)
-    dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("prism_datasets.id", ondelete="CASCADE"), index=True)
     position: Mapped[int] = mapped_column(Integer)
     payload: Mapped[dict] = mapped_column(JSON)
 
 
 class Dashboard(Base):
-    __tablename__ = "dashboards"
+    __tablename__ = "prism_dashboards"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("prism_users.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("prism_datasets.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(180))
     config: Mapped[list] = mapped_column(JSON, default=list)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -53,10 +53,10 @@ class Dashboard(Base):
 
 
 class ChatMessage(Base):
-    __tablename__ = "chat_messages"
+    __tablename__ = "prism_chat_messages"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("prism_users.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("prism_datasets.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(20))
     content: Mapped[str] = mapped_column(Text)
     visual: Mapped[dict | None] = mapped_column(JSON, nullable=True)

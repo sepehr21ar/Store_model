@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 from .ai_service import answer_question
 from .analytics import chart_data, create_dataset, dataframe, dataset_summary, json_value, owned_dataset, profile_for_ai
 from .database import Base, engine, get_db
-from .migrations import migrate_schema
 from .models import ChatMessage, Dashboard, Dataset, DatasetRow, User
 from .security import create_token, current_user, hash_password, verify_password
 
@@ -62,7 +61,6 @@ def dataset_dict(item: Dataset) -> dict:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
-    migrate_schema()
     yield
 
 
