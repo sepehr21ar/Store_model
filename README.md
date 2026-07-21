@@ -15,7 +15,7 @@ Prism is a private, multi-user analytics workspace built with FastAPI, SQLAlchem
 - A separate private dashboard page for every imported file
 - A fast 50-row preview with an optional full-row viewer
 - Ownership-safe dataset deletion and authenticated CSV export
-- Persistent dataset-specific AI conversations through LangChain and Cohere
+- Persistent dataset-specific AI conversations through LangChain and GAP
 - Responsive frontend served directly by FastAPI
 - SQLite local development and PostgreSQL production deployment
 
@@ -53,8 +53,7 @@ Keep `SECRET_KEY` stable after users are created. Changing it invalidates active
 Imports, charts, data exploration, and dashboards work without an AI key. AI chat requires:
 
 ```env
-COHERE_API_KEY=your-key
-COHERE_MODEL=command-a-03-2025
+GAP=your-key
 ```
 
 The assistant receives computed statistics, column metadata, top category values, a small row sample, and recent conversation history. It does not receive passwords or infrastructure credentials.
@@ -86,7 +85,7 @@ FastAPI API
     |-- authentication and per-user authorization
     |-- pandas file import, profiling, and aggregation
     |-- SQLAlchemy dataset, dashboard, and chat storage
-    `-- LangChain/Cohere data analyst
+    `-- LangChain/GAP data analyst
              |
 SQLite locally / PostgreSQL in production
 ```
