@@ -1,4 +1,5 @@
 .env
+analytics.db
 __pycache__/
 *.pyc
 *.pyo

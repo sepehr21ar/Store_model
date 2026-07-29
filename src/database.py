@@ -1,4 +1,6 @@
 import os
+import warnings
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -10,6 +12,14 @@ load_dotenv()
 
 def database_url() -> str:
     url = os.getenv("DATABASE_URL", "sqlite:///./analytics.db").strip()
+    host = urlparse(url).hostname
+    if host == "replace_host":
+        warnings.warn(
+            "DATABASE_URL still uses the replace_host template value; using local SQLite instead.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return "sqlite:///./analytics.db"
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg://", 1)
     if url.startswith("postgresql://"):
@@ -17,8 +27,9 @@ def database_url() -> str:
     return url
 
 
-connect_args = {"check_same_thread": False} if database_url().startswith("sqlite") else {}
-engine = create_engine(database_url(), pool_pre_ping=True, connect_args=connect_args)
+DATABASE_URL = database_url()
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
