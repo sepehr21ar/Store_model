@@ -34,7 +34,7 @@
   grid-template-columns: repeat(4, minmax(130px, 1fr)) auto;
 }
 
-#toggle-rows:disabled {
+.panel-actions .button:disabled {
   cursor: wait;
   opacity: .65;
 }
@@ -191,6 +191,21 @@
   min-width: 160px;
 }
 
+.dataset-tools {
+  display: flex;
+  gap: 10px;
+}
+
+.dataset-tools input,
+.dataset-tools select {
+  min-width: 170px;
+}
+
+.area-fill {
+  fill: #dcece4;
+  opacity: .8;
+}
+
 .dashboard-loading {
   padding: 60px 20px;
   text-align: center;
@@ -247,6 +262,16 @@
   .panel-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  .dataset-tools {
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .dataset-tools input,
+  .dataset-tools select {
+    min-width: 0;
   }
 }
 .boot-screen {

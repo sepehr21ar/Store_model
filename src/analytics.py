@@ -115,11 +115,28 @@ def chart_data(
     limit: int = 12,
     chart_type: str = "bar",
 ) -> dict:
-    if chart_type not in {"bar", "line"}:
-        raise HTTPException(400, "Chart type must be bar or line.")
+    if chart_type not in {"bar", "line", "area", "pie", "scatter", "histogram"}:
+        raise HTTPException(400, "Unsupported chart type.")
     if value not in frame.columns:
         raise HTTPException(400, "Unknown value column.")
+    if chart_type in {"line", "area", "pie", "scatter"} and not category:
+        raise HTTPException(400, f"Select an X-axis or category column for the {chart_type} chart.")
+    if category and category not in frame.columns:
+        raise HTTPException(400, "Unknown category column.")
     values = pd.to_numeric(frame[value], errors="coerce")
+    if chart_type == "histogram":
+        clean = values.dropna()
+        if clean.empty:
+            return {"type": "histogram", "title": f"Distribution of {value}", "labels": [], "series": [{"name": value, "values": []}], "category": None, "value": value, "aggregation": "count"}
+        bin_count = min(max(limit, 3), 30)
+        buckets = pd.cut(clean, bins=bin_count, include_lowest=True, duplicates="drop")
+        counts = buckets.value_counts(sort=False)
+        labels = [f"{interval.left:.2f}–{interval.right:.2f}" for interval in counts.index]
+        return {"type": "histogram", "title": f"Distribution of {value}", "labels": labels, "series": [{"name": "Rows", "values": [int(item) for item in counts.tolist()]}], "category": None, "value": value, "aggregation": "count"}
+    if chart_type == "scatter":
+        x_values = pd.to_numeric(frame[category], errors="coerce")
+        points = pd.DataFrame({"x": x_values, "y": values}).dropna().head(min(limit, 500))
+        return {"type": "scatter", "title": f"{value} by {category}", "labels": [str(index + 1) for index in range(len(points))], "series": [{"name": value, "values": [json_value(item) for item in points["y"].tolist()]}], "x_values": [json_value(item) for item in points["x"].tolist()], "category": category, "value": value, "aggregation": "none"}
     if aggregation == "none":
         labels = frame[category].fillna("Unknown").astype(str) if category else pd.Series([f"Row {index + 1}" for index in range(len(frame))])
         raw = pd.DataFrame({"label": labels, "value": values}).dropna(subset=["value"]).head(min(limit, 50))
@@ -133,15 +150,13 @@ def chart_data(
             "aggregation": aggregation,
         }
     if category:
-        if category not in frame.columns:
-            raise HTTPException(400, "Unknown category column.")
         work = pd.DataFrame({"category": frame[category].fillna("Unknown").astype(str), "value": values}).dropna(subset=["value"])
         grouped = work.groupby("category", dropna=False, sort=False)["value"]
         operations = {"sum": grouped.sum, "mean": grouped.mean, "count": grouped.count, "min": grouped.min, "max": grouped.max}
         if aggregation not in operations:
             raise HTTPException(400, "Aggregation must be sum, mean, count, min, or max.")
         result = operations[aggregation]()
-        if chart_type == "bar":
+        if chart_type in {"bar", "pie"}:
             result = result.sort_values(ascending=False)
         result = result.head(min(limit, 50))
         labels, data = result.index.tolist(), [json_value(v) for v in result.tolist()]
@@ -157,7 +172,9 @@ def chart_data(
 
 
 def profile_for_ai(frame: pd.DataFrame, columns: list[dict]) -> dict:
-    profile = {"row_count": len(frame), "columns": columns, "statistics": {}, "sample": []}
+    profile = {"row_count": len(frame), "columns": columns, "statistics": {}, "grouped_statistics": {}, "sample": []}
+    numeric_columns = [column["name"] for column in columns if column["type"] == "number"]
+    category_columns = [column["name"] for column in columns if column["type"] == "category"]
     for column in columns:
         name = column["name"]
         series = frame[name]
@@ -167,5 +184,19 @@ def profile_for_ai(frame: pd.DataFrame, columns: list[dict]) -> dict:
                 profile["statistics"][name] = {"min": json_value(clean.min()), "max": json_value(clean.max()), "mean": json_value(clean.mean()), "sum": json_value(clean.sum())}
         else:
             profile["statistics"][name] = {"top_values": {str(k): int(v) for k, v in series.fillna("Unknown").astype(str).value_counts().head(8).items()}}
+    for category_name in category_columns[:4]:
+        category_values = frame[category_name].fillna("Unknown").astype(str)
+        if category_values.nunique() > 20:
+            continue
+        category_profile = {}
+        for metric_name in numeric_columns[:4]:
+            metric_values = pd.to_numeric(frame[metric_name], errors="coerce")
+            grouped = pd.DataFrame({"category": category_values, "metric": metric_values}).dropna(subset=["metric"]).groupby("category", sort=False)["metric"]
+            category_profile[metric_name] = [
+                {"category": str(label), "count": int(values.count()), "sum": json_value(values.sum()), "mean": json_value(values.mean()), "min": json_value(values.min()), "max": json_value(values.max())}
+                for label, values in grouped
+            ]
+        if category_profile:
+            profile["grouped_statistics"][category_name] = category_profile
     profile["sample"] = [{k: json_value(v) for k, v in row.items()} for row in frame.head(8).to_dict(orient="records")]
     return profile

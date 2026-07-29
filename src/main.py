@@ -39,12 +39,17 @@ class ChartRequest(BaseModel):
     category: str | None = None
     value: str
     aggregation: str = "sum"
-    chart_type: Literal["bar", "line"] = "bar"
-    limit: int = Field(default=12, ge=1, le=50)
+    chart_type: Literal["bar", "line", "area", "pie", "scatter", "histogram"] = "bar"
+    limit: int = Field(default=12, ge=1, le=500)
 
 
 class DashboardRequest(BaseModel):
     dataset_id: int
+    name: str = Field(min_length=1, max_length=180)
+    config: list[dict] = Field(default_factory=list)
+
+
+class DashboardUpdateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=180)
     config: list[dict] = Field(default_factory=list)
 
@@ -199,6 +204,28 @@ def save_dashboard(payload: DashboardRequest, user: User = Depends(current_user)
     db.commit()
     db.refresh(item)
     return {"id": item.id, "name": item.name, "config": item.config}
+
+
+@app.put("/api/dashboards/{dashboard_id}")
+def update_dashboard(dashboard_id: int, payload: DashboardUpdateRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = db.scalar(select(Dashboard).where(Dashboard.id == dashboard_id, Dashboard.user_id == user.id))
+    if not item:
+        raise HTTPException(404, "Dashboard not found.")
+    item.name = payload.name.strip()
+    item.config = payload.config
+    db.commit()
+    db.refresh(item)
+    return {"id": item.id, "name": item.name, "config": item.config}
+
+
+@app.delete("/api/dashboards/{dashboard_id}")
+def delete_dashboard(dashboard_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = db.scalar(select(Dashboard).where(Dashboard.id == dashboard_id, Dashboard.user_id == user.id))
+    if not item:
+        raise HTTPException(404, "Dashboard not found.")
+    db.delete(item)
+    db.commit()
+    return {"message": "Dashboard deleted.", "dashboard_id": dashboard_id}
 
 
 @app.post("/api/chat")

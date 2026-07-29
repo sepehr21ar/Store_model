@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -35,6 +35,7 @@ class Dataset(Base):
 
 class DatasetRow(Base):
     __tablename__ = "prism_dataset_rows"
+    __table_args__ = (Index("ix_prism_dataset_rows_dataset_position", "dataset_id", "position"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     dataset_id: Mapped[int] = mapped_column(ForeignKey("prism_datasets.id", ondelete="CASCADE"), index=True)
     position: Mapped[int] = mapped_column(Integer)
